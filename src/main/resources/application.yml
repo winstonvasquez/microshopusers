@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: microshop-users
+  messages:
+    encoding: UTF-8
+    basename: i18n/messages
+  web:
+    locale: es
+    locale-resolver: fixed
+
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        ddl-auto: update
+        jdbc:
+          batch_size: 30
+        order_inserts: true
+        order_updates: true
+    show-sql: true
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dbdeveloper?currentSchema=dbshopusuarios
+    username: postgres
+    password: S3l3n1um
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    schemas: public
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL_USER:winvasquezdev@gmail.com}
+    password: ${EMAIL_PASS:your-app-password}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+
+logging:
+  level:
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
+
+server:
+  port: 8080
+  servlet:
+    context-path: /users
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+application:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "TU_CLIENT_ID_DE_GOOGLE"
+            client-secret: "TU_CLIENT_SECRET_DE_GOOGLE"
+          facebook:
+            client-id: "TU_APP_ID_DE_FACEBOOK"
+            client-secret: "TU_APP_SECRET_DE_FACEBOOK"
+          apple:
+            client-id: "TU_CLIENT_ID_DE_APPLE"
+            client-secret: "TU_CLIENT_SECRET_DE_APPLE"
+    jwt:
+      expiration: 86400000 # 24 hours
+      private-key: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCrGpabbRKRVv4D
+        8SMVtrxxNnmFRqNQ4ByoHLYePS2vUdImVVYqDMxWWuO+aoH3ClnaJiglvTbK0RJR
+        ulvLEJmXgRtBe7pSXJFOeBCfVMbSr3rck/9QET9joGaE6qrAQLNqmnegzwpr/xmv
+        c6rLN3tIF9U9d170pn0wYaFQb6TkPxxAMXKzN9zjnY2T33caSHKF2FoDF01Q/vL0
+        VZjxDqjj+7N7goO+vtaRHvtXLkG+W7bKczUm5xlgejB4AXs3Ti0pUNrQvch/fyqi
+        +x/2MRYnDGZI00/Jc6sbOb9x/l6CysNRoK0WycFq8n4FfrLl9n29wWlV9e7MyryC
+        DKDykQX5AgMBAAECggEAElvv/Q1fCKlE6DdfhFzvK1alA1/o9iyV5pPuFqCJ3l3x
+        JpvRewGUi0+FUFEtUMyTh4zAkgwTbP+x74MHhmppkJAR1JzqCRxVmw3W+sGl88VQ
+        cYqPwo+XNaFoXqqvV6GZnr6kR2TvwVbF8sV+df+mAr5L6yR709Rpal+PZ4oTL0pJ
+        UXfVufaf9yGqqKRTaYqyLGTcaMGwqlDM3uyBpPekjZj+ghsqX6fISO26WcFRQRzA
+        LYXoMjoODxyt6uFgJyHNdx24OaJapf9y7zrS8NmCYh2vXcuGkTEHVNChWJIFiil1
+        UbLOCYftdTSZBRLT/Au6rbYrSy2zd7Uv+M+b7BLKYQKBgQDImJpUHPSfyJwb2a7c
+        y0ytY8Dz/890AoKDL8dHj0kgfiFZdWgj/kL02y8H7mIflFEvpU67rEjmsMo+Y572
+        wMKlbWge60EQ1ExIsmNnfr5pV/te70GhbI4oztIbN+JMLLH/VLA4no+TOYVVN3GH
+        OPlDATj+Rj6R1sTZNnsAeYrulwKBgQDaXLMbm+3VzAUqShlyfHxc5wE8KTYIDOdZ
+        71FtlBv5ymuH7UlkTxzwib28918ZoTseN0TinJxwrYyFwR2sor4J4ocxSimO4eAi
+        7zfS1fBff441PTanyKuIfjVS7WQTo+TxmQoX/RtYhvnkmAguVoBVemP6At2QmtdN
+        FpQTYOXR7wKBgGUk9SQWWY47o+MzFsWDyMzgsIkXYm4XWeF19OBzMictEfm+hl0n
+        tnEqF4PDQjy0F1+T1agxjaysVb2xk5TNyxeIm+iDLJKkyTYapJ6pvK73SusqbohL
+        aT7QUgahXfyUyMd610QlRzWv2jgGtbq+Eokjk646kxAMH8N6gfjSUChPAoGAczd+
+        eg7oi2q/PvUiQDpXFF3/VNMZ412LpPSVro/7wu1/l5UoqHjl+DV1nAOadleQbf0T
+        p86i7QFlqB2hnrmwNF8GnodXLkEYltZKSkEAOCOB0a2e7SEBAWA2mq8Pox1Ta/co
+        UEgI6ckuieN+TZTu2iteHUjtx6Mr/0zujNsP6JkCgYBHYZp+dDrlTxCyFMsKw6iL
+        Jj0LywocRXV504N4S2S+GL1QSKDhh643ElkwA43eAcNJXZl1tRFf7f0almn/CxGY
+        alVVLaHSoa+yl6yAyE6pkLFNQOazRYK6okmq62yFuy5hBp++Cx/CjXKunVkqQdKY
+        Tcewjkb3zKbpp/CbWJ8fQA==
+        -----END PRIVATE KEY-----
+      public-key: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqxqWm20SkVb+A/EjFba8
+        cTZ5hUajUOAcqBy2Hj0tr1HSJlVWKgzMVlrjvmqB9wpZ2iYoJb02ytESUbpbyxCZ
+        l4EbQXu6UlyRTngQn1TG0q963JP/UBE/Y6BmhOqqwECzapp3oM8Ka/8Zr3Oqyzd7
+        SBfVPXde9KZ9MGGhUG+k5D8cQDFyszfc452Nk993GkhyhdhaAxdNUP7y9FWY8Q6o
+        4/uze4KDvr7WkR77Vy5Bvlu2ynM1JucZYHoweAF7N04tKVDa0L3If38qovsf9jEW
+        JwxmSNNPyXOrGzm/cf5egsrDUaCtFsnBavJ+BX6y5fZ9vcFpVfXuzMq8ggyg8pEF
+        +QIDAQAB
+        -----END PUBLIC KEY-----
+

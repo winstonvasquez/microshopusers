@@ -1,0 +1,85 @@
+# ==========================================
+# Spring Boot / Java 21 / Maven - .gitignore
+# ==========================================
+
+# ---- Maven ----
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+.mvn/wrapper/maven-wrapper.jar
+
+# ---- Compiled class files ----
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# ---- Log files ----
+*.log
+logs/
+
+# ---- Spring Boot ----
+.spring/
+spring-shell.log
+
+# ---- Application secrets / local overrides ----
+**/application-local.yml
+**/application-local.properties
+**/application-secrets.yml
+**/application-secrets.properties
+**/application-dev.yml
+**/application-dev.properties
+
+# ---- Docker local overrides ----
+docker-compose.override.yml
+
+# ---- IntelliJ IDEA ----
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ---- Eclipse / STS ----
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+.metadata/
+
+# ---- VS Code ----
+.vscode/
+
+# ---- NetBeans ----
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ---- Warp / AI Agents ----
+.agent/
+AGENTS.md
+
+# ---- OS files ----
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.swp
+*.swo
+
+# ---- JVM crash logs ----
+hs_err_pid*
+replay_pid*
