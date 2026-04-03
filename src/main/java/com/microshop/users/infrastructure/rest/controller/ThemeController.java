@@ -1,6 +1,8 @@
 package com.microshop.users.infrastructure.rest.controller;
 
 import com.microshop.users.application.command.ThemePreferenceService;
+import com.microshop.users.application.dto.ThemeRequestDto;
+import com.microshop.users.application.dto.ThemeResponseDto;
 import com.microshop.users.application.query.ErpParameterQueryService;
 import com.microshop.users.application.query.ThemePreferenceQueryService;
 import com.microshop.users.infrastructure.persistence.entity.ThemeSeasonalEntity;
@@ -72,7 +74,7 @@ public class ThemeController {
      */
     @GetMapping("/active")
     @Operation(summary = "Obtener tema activo por módulo", description = "Endpoint público. ?module=shop|admin|pos (default: shop)")
-    public ResponseEntity<Map<String, Object>> getActiveTheme(
+    public ResponseEntity<ThemeResponseDto> getActiveTheme(
             @RequestParam(value = "module", required = false, defaultValue = "shop") String module,
             @AuthenticationPrincipal UserDetails userDetails,
             Authentication auth) {
@@ -91,10 +93,8 @@ public class ThemeController {
                 List<ThemeSeasonalEntity> active = themeSeasonalRepository.findActiveThemesForDate(today);
                 if (!active.isEmpty()) {
                     ThemeSeasonalEntity seasonal = active.get(0);
-                    return ResponseEntity.ok(Map.of(
-                            "themeKey",         seasonal.getThemeKey(),
-                            "isSeasonalActive", true,
-                            "seasonalName",     seasonal.getName()
+                    return ResponseEntity.ok(new ThemeResponseDto(
+                            seasonal.getThemeKey(), true, seasonal.getName()
                     ));
                 }
             }
@@ -108,11 +108,7 @@ public class ThemeController {
                 if (companyId == null) companyId = 0L;
                 String userKey = themeQueryService.resolveTheme(userId, companyId, module);
                 if (userKey != null && !userKey.isBlank()) {
-                    return ResponseEntity.ok(Map.of(
-                            "themeKey",         userKey,
-                            "isSeasonalActive", false,
-                            "seasonalName",     ""
-                    ));
+                    return ResponseEntity.ok(new ThemeResponseDto(userKey, false, ""));
                 }
             } catch (Exception ignored) {
                 // Usuario no resuelto — continúa con tema global
@@ -124,11 +120,7 @@ public class ThemeController {
                 .filter(v -> !v.isBlank())
                 .orElse(DEFAULT_THEME);
 
-        return ResponseEntity.ok(Map.of(
-                "themeKey",         themeKey,
-                "isSeasonalActive", false,
-                "seasonalName",     ""
-        ));
+        return ResponseEntity.ok(new ThemeResponseDto(themeKey, false, ""));
     }
 
     /**
@@ -142,25 +134,32 @@ public class ThemeController {
     @CacheEvict(value = "themes", allEntries = true)
     @Operation(summary = "Cambiar tema activo por módulo", description = "Con sesión: persiste preferencia de usuario. Sin sesión: actualiza parámetro global (admin).")
     public ResponseEntity<Void> setActiveTheme(
-            @RequestBody Map<String, String> body,
+            @RequestBody ThemeRequestDto body,
             @AuthenticationPrincipal UserDetails userDetails,
             Authentication auth) {
 
-        String themeKey = body.get("themeKey");
+        String themeKey = body.themeKey();
         if (themeKey == null || themeKey.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
-        String module = body.getOrDefault("module", "shop");
+        String module = body.module() != null ? body.module() : "shop";
 
         if (userDetails != null) {
             try {
                 Long userId    = themeQueryService.resolveUserId(userDetails.getUsername());
-                // Prioridad: companyId del JWT > companyId del body > 0L (global)
+                // Prioridad: companyId del JWT > companyId del body (requerido para aislar por empresa)
                 Long companyId = extractCompanyId(auth);
                 if (companyId == null) {
-                    String companyStr = body.get("companyId");
-                    companyId = (companyStr != null) ? Long.parseLong(companyStr) : 0L;
+                    String companyStr = body.companyId();
+                    if (companyStr == null || companyStr.isBlank()) {
+                        return ResponseEntity.badRequest().build();
+                    }
+                    try {
+                        companyId = Long.parseLong(companyStr);
+                    } catch (NumberFormatException e) {
+                        return ResponseEntity.badRequest().build();
+                    }
                 }
                 themeCommandService.saveUserPreference(userId, companyId, module, themeKey.trim());
                 return ResponseEntity.<Void>ok().build();
@@ -189,20 +188,24 @@ public class ThemeController {
     @PutMapping("/company")
     @Operation(summary = "Guardar tema base de empresa (solo ADMIN)")
     public ResponseEntity<Void> setCompanyTheme(
-            @RequestBody Map<String, String> body,
+            @RequestBody ThemeRequestDto body,
             Authentication auth) {
 
-        String themeKey = body.get("themeKey");
-        String module   = body.getOrDefault("module", "shop");
+        String themeKey = body.themeKey();
+        String module   = body.module() != null ? body.module() : "shop";
 
         // companyId del JWT tiene prioridad; fallback al body
         Long companyId = extractCompanyId(auth);
         if (companyId == null) {
-            String companyStr = body.get("companyId");
+            String companyStr = body.companyId();
             if (themeKey == null || themeKey.isBlank() || companyStr == null) {
                 return ResponseEntity.badRequest().build();
             }
-            companyId = Long.parseLong(companyStr);
+            try {
+                companyId = Long.parseLong(companyStr);
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().build();
+            }
         }
         if (themeKey == null || themeKey.isBlank()) {
             return ResponseEntity.badRequest().build();
@@ -219,7 +222,7 @@ public class ThemeController {
     @Operation(summary = "Eliminar preferencia de tema del usuario")
     public ResponseEntity<Void> deleteUserTheme(
             @RequestParam(value = "module", required = false, defaultValue = "shop") String module,
-            @RequestBody(required = false) Map<String, String> body,
+            @RequestBody(required = false) ThemeRequestDto body,
             @AuthenticationPrincipal UserDetails userDetails,
             Authentication auth) {
 
@@ -227,8 +230,15 @@ public class ThemeController {
         Long userId    = themeQueryService.resolveUserId(userDetails.getUsername());
         Long companyId = extractCompanyId(auth);
         if (companyId == null) {
-            String companyIdStr = (body != null) ? body.get("companyId") : null;
-            companyId = (companyIdStr != null) ? Long.parseLong(companyIdStr) : 0L;
+            String companyIdStr = (body != null) ? body.companyId() : null;
+            if (companyIdStr == null || companyIdStr.isBlank()) {
+                return ResponseEntity.badRequest().build();
+            }
+            try {
+                companyId = Long.parseLong(companyIdStr);
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().build();
+            }
         }
         themeCommandService.deleteUserPreference(userId, companyId, module);
         return ResponseEntity.noContent().build();

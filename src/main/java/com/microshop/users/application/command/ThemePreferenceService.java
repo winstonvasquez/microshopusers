@@ -26,7 +26,7 @@ public class ThemePreferenceService {
         var existing = userThemeRepo.findByUserIdAndCompanyIdAndModule(userId, companyId, module);
         UserThemePreferenceEntity entity = existing.orElseGet(() ->
                 UserThemePreferenceEntity.builder()
-                        .userId(userId).companyId(companyId).module(module).build());
+                        .userId(userId).companyId(companyId).module(module).themeKey(themeKey).build());
         entity.setThemeKey(themeKey);
         entity.setUpdatedAt(LocalDateTime.now());
         userThemeRepo.save(entity);
@@ -38,7 +38,7 @@ public class ThemePreferenceService {
         var existing = companyThemeRepo.findByCompanyIdAndModule(companyId, module);
         CompanyThemeConfigEntity entity = existing.orElseGet(() ->
                 CompanyThemeConfigEntity.builder()
-                        .companyId(companyId).module(module).build());
+                        .companyId(companyId).module(module).themeKey(themeKey).build());
         entity.setThemeKey(themeKey);
         entity.setUpdatedAt(LocalDateTime.now());
         companyThemeRepo.save(entity);

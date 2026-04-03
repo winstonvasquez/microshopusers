@@ -54,7 +54,7 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 // Tema de empresa: solo ADMIN puede modificar
                                                 .requestMatchers(HttpMethod.PUT, "/api/themes/company")
-                                                .hasAnyRole("ADMIN", "ROLE_ADMIN")
+                                                .hasRole("ADMIN")
                                                 .requestMatchers("/api/chat/**").authenticated()
                                                 .requestMatchers("/api/admin/chat/**").hasAnyRole("ADMIN", "SOPORTE")
                                                 .anyRequest().authenticated())
