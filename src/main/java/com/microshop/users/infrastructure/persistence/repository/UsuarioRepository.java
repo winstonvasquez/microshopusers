@@ -32,4 +32,6 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     java.util.List<UsuarioEntity> findByRolId(Long rolId);
 
     Page<UsuarioSummary> findProjectedBy(Pageable pageable);
+
+    Optional<UsuarioEntity> findByPinHash(String pinHash);
 }

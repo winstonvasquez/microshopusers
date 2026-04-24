@@ -12,11 +12,12 @@ import org.hibernate.annotations.Comment;
 @Entity
 @Table(name = "rol")
 @Comment("Tabla maestra de roles del sistema")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class RolEntity extends AuditEntity {
 
     @Id

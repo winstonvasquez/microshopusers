@@ -16,11 +16,12 @@ import org.hibernate.annotations.Comment;
 @Entity
 @Table(name = "policy_target")
 @Comment("Define sobre qué recurso y acción actúa la política")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true, exclude = { "policy" })
 public class PolicyTargetEntity extends AuditEntity {
 
     @Id

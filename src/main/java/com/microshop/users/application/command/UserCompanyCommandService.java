@@ -12,6 +12,8 @@ import com.microshop.users.infrastructure.persistence.repository.UserCompanyRole
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,7 @@ public class UserCompanyCommandService {
     private final UsuarioRepository usuarioRepository;
     private final CompanyRepository companyRepository;
     private final RolRepository rolRepository;
+    private final MessageSource messageSource;
 
     public void addUserToCompany(@NonNull Long userId, @NonNull Long companyId, @NonNull Long roleId) {
         var user = findUser(userId);
@@ -40,17 +43,17 @@ public class UserCompanyCommandService {
 
     private UsuarioEntity findUser(@NonNull Long userId) {
         return usuarioRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage("user.not.found.simple", null, LocaleContextHolder.getLocale())));
     }
 
     private CompanyEntity findCompany(@NonNull Long companyId) {
         return companyRepository.findById(companyId)
-                .orElseThrow(() -> new IllegalArgumentException("Company not found"));
+                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage("company.not.found", null, LocaleContextHolder.getLocale())));
     }
 
     private RolEntity findRole(@NonNull Long roleId) {
         return rolRepository.findById(roleId)
-                .orElseThrow(() -> new IllegalArgumentException("Role not found"));
+                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage("role.not.found", null, LocaleContextHolder.getLocale())));
     }
 
     private UserCompanyEntity getOrCreateUserCompany(UsuarioEntity user, CompanyEntity company) {

@@ -70,6 +70,10 @@ public class UsuarioEntity extends AuditEntity {
     @Comment("Persona asociada al usuario")
     private PersonaEntity persona;
 
+    @Column(name = "pin_hash", length = 100)
+    @Comment("Hash del PIN numérico para login rápido en POS")
+    private String pinHash;
+
     @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
     @Builder.Default
     private Set<UserCompanyEntity> userCompanies = new HashSet<>();

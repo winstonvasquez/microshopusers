@@ -1,6 +1,9 @@
 spring:
   application:
     name: microshop-users
+  threads:
+    virtual:
+      enabled: true
   messages:
     encoding: UTF-8
     basename: i18n/messages
@@ -12,24 +15,28 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        ddl-auto: update
         jdbc:
           batch_size: 30
         order_inserts: true
         order_updates: true
-    show-sql: true
+        packages_to_scan: com.microshop.users,com.microshop.rrhh
+    show-sql: false
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
   datasource:
     url: jdbc:postgresql://localhost:5432/dbdeveloper?currentSchema=dbshopusuarios
     username: postgres
     password: S3l3n1um
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 600000
   flyway:
-    enabled: true
-    baseline-on-migrate: true
-    schemas: public
+    enabled: false
 
   mail:
     host: smtp.gmail.com
@@ -46,6 +53,18 @@ spring:
             required: true
 
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    mail:
+      enabled: false
+
 logging:
   level:
     org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
@@ -53,11 +72,14 @@ logging:
 server:
   port: 8080
   servlet:
-    context-path: /users
     encoding:
       charset: UTF-8
       force: true
       enabled: true
+
+app:
+  cors:
+    allowed-origins: http://localhost:4200,https://localhost:4200,http://localhost:4201,http://127.0.0.1:4200,https://127.0.0.1:4200
 
 application:
   security:

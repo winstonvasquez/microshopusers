@@ -12,11 +12,12 @@ import org.hibernate.annotations.Comment;
 @Entity
 @Table(name = "rubro")
 @Comment("Tabla maestra de rubros o sectores de negocio")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class RubroEntity extends AuditEntity {
 
     @Id

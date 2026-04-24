@@ -20,7 +20,7 @@ import org.hibernate.annotations.Comment;
 @Comment("Roles asignados a un usuario dentro de una empresa")
 @Getter
 @Setter
-@ToString(callSuper = true)
+@ToString(callSuper = true, exclude = { "userCompany", "rol" })
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

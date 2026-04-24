@@ -12,11 +12,12 @@ import org.hibernate.annotations.Comment;
 @Entity
 @Table(name = "policy")
 @Comment("Tabla de políticas PBAC del sistema")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class PolicyEntity extends AuditEntity {
 
     @Id

@@ -1,10 +1,9 @@
 package com.microshop.users.shared.util;
 
-public final class AppUtils {
+import lombok.experimental.UtilityClass;
 
-    private AppUtils() {
-        throw new IllegalStateException("Utility class");
-    }
+@UtilityClass
+public class AppUtils {
 
     public static final String FECHA_FORMATO = "dd/MM/yyyy";
 }

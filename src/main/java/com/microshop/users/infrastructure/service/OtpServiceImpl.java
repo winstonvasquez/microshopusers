@@ -13,12 +13,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class OtpServiceImpl implements OtpService {
 
-    // OTP validity: 10 minutes
     private static final long OTP_EXPIRY_SECONDS = 600;
     private static final int OTP_LENGTH = 6;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    // email -> OtpEntry
     private final Map<String, OtpEntry> store = new ConcurrentHashMap<>();
 
     @Override

@@ -9,18 +9,20 @@ import jakarta.persistence.Table;
 import org.hibernate.annotations.Comment;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "company")
 @Comment("Tabla de empresas (tenants)")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 public class CompanyEntity extends AuditEntity {
 
     @Id
@@ -40,4 +42,28 @@ public class CompanyEntity extends AuditEntity {
     @Comment("Estado de la empresa (Activa/Inactiva)")
     @Builder.Default
     private boolean isActive = true;
+
+    @Column(name = "legal_name", length = 200)
+    @Comment("Razón social / nombre legal")
+    private String legalName;
+
+    @Column(name = "address", length = 300)
+    @Comment("Dirección fiscal")
+    private String address;
+
+    @Column(name = "phone", length = 20)
+    @Comment("Teléfono de contacto")
+    private String phone;
+
+    @Column(name = "email", length = 100)
+    @Comment("Email corporativo")
+    private String email;
+
+    @Column(name = "logo_url", length = 500)
+    @Comment("URL del logotipo")
+    private String logoUrl;
+
+    @Column(name = "domain", length = 100, unique = true)
+    @Comment("Dominio personalizado del tenant")
+    private String domain;
 }

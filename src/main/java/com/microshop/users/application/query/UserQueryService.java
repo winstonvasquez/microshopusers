@@ -1,7 +1,7 @@
 package com.microshop.users.application.query;
 
-import com.microshop.users.infrastructure.mapper.UserMapper;
-import com.microshop.users.infrastructure.web.dto.UserResponseDto;
+import com.microshop.users.application.mapper.UserMapper;
+import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

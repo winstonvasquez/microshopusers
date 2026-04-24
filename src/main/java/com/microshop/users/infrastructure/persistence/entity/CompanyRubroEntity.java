@@ -20,7 +20,7 @@ import org.hibernate.annotations.Comment;
 @Comment("Relación N:M entre empresas y rubros - Una empresa puede operar en múltiples sectores")
 @Getter
 @Setter
-@ToString(callSuper = true)
+@ToString(callSuper = true, exclude = { "company", "rubro" })
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

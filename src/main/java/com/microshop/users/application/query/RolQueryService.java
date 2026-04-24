@@ -1,6 +1,6 @@
 package com.microshop.users.application.query;
 
-import com.microshop.users.infrastructure.web.dto.RolResponseDto;
+import com.microshop.users.application.dto.RolResponseDto;
 import com.microshop.users.infrastructure.persistence.repository.RolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

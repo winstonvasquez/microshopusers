@@ -33,6 +33,9 @@ public class SecurityConfig {
         private final JwtAuthenticationFilter jwtAuthFilter;
         private final UserDetailsService userDetailsService;
 
+        @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:4200}")
+        private String allowedOriginsRaw;
+
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
                 http
@@ -40,23 +43,23 @@ public class SecurityConfig {
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(
-                                                                "/api/auth/**",
-                                                                "/api/companies/**",
-                                                                "/api/saas/**",
-                                                                "/api/system/parameters",
-                                                                "/api/internal/**",
+                                                                "/users/api/auth/**",
+                                                                "/users/api/companies/**",
+                                                                "/users/api/saas/**",
+                                                                "/users/api/system/parameters/**",
+                                                                "/users/api/internal/**",
                                                                 "/actuator/**",
                                                                 "/swagger-ui/**",
                                                                 "/v3/api-docs/**")
                                                 .permitAll()
-                                                // GET /api/themes/active es público; PUT/DELETE requieren autenticación
-                                                .requestMatchers(HttpMethod.GET, "/api/themes/active")
+                                                // GET /users/api/themes/active es público
+                                                .requestMatchers(HttpMethod.GET, "/users/api/themes/active")
                                                 .permitAll()
                                                 // Tema de empresa: solo ADMIN puede modificar
-                                                .requestMatchers(HttpMethod.PUT, "/api/themes/company")
+                                                .requestMatchers(HttpMethod.PUT, "/users/api/themes/company")
                                                 .hasRole("ADMIN")
-                                                .requestMatchers("/api/chat/**").authenticated()
-                                                .requestMatchers("/api/admin/chat/**").hasAnyRole("ADMIN", "SOPORTE")
+                                                .requestMatchers("/users/api/chat/**").authenticated()
+                                                .requestMatchers("/users/api/admin/chat/**").hasAnyRole("ADMIN", "SOPORTE")
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -85,13 +88,8 @@ public class SecurityConfig {
 
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
-                // TODO: Externalize CORS origins to application properties
-                CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOrigins(List.of(
-                                "http://localhost:4200",
-                                "https://localhost:4200",
-                                "http://127.0.0.1:4200",
-                                "https://127.0.0.1:4200"));
+                        CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedOrigins(List.of(allowedOriginsRaw.split(",")));
                 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(List.of("*"));
                 configuration.setAllowCredentials(true);

@@ -1,7 +1,7 @@
 package com.microshop.users.infrastructure.persistence.repository;
 
 
-import com.microshop.users.infrastructure.web.dto.CompanyResponseDto;
+import com.microshop.users.application.dto.CompanyResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.CompanyEntity;
 
 import java.util.List;
@@ -18,9 +18,9 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, Long> {
 
     Optional<CompanyEntity> findByRuc(String ruc);
 
-    @Query("SELECT new com.microshop.users.infrastructure.web.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c")
+    @Query("SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c")
     List<CompanyResponseDto> findAllProjected();
 
-    @Query("SELECT new com.microshop.users.infrastructure.web.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c WHERE c.id = :id")
+    @Query("SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c WHERE c.id = :id")
     Optional<CompanyResponseDto> findProjectedById(@Param("id") Long id);
 }

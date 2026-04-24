@@ -18,11 +18,12 @@ import java.time.Instant;
 @Entity
 @Table(name = "sesion")
 @Comment("Tabla de sesiones de usuario activas e históricas")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true, exclude = { "usuario" })
 public class SesionEntity extends AuditEntity {
 
     @Id

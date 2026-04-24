@@ -1,14 +1,17 @@
 package com.microshop.users.application.command;
 
 
-import com.microshop.users.infrastructure.web.dto.UserRequestDto;
-import com.microshop.users.infrastructure.web.dto.UserResponseDto;
+import com.microshop.users.application.MessageHelper;
+import com.microshop.users.application.dto.UserRequestDto;
+import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.RolEntity;
 import com.microshop.users.infrastructure.persistence.entity.UsuarioEntity;
-import com.microshop.users.infrastructure.mapper.UserMapper;
+import com.microshop.users.application.mapper.UserMapper;
 import com.microshop.users.infrastructure.persistence.repository.PersonaRepository;
 import com.microshop.users.infrastructure.persistence.repository.RolRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.shared.exception.BusinessException;
+import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +28,7 @@ public class UserCommandService {
     private final RolRepository rolRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final MessageHelper msg;
 
 
     @Transactional
@@ -55,7 +59,7 @@ public class UserCommandService {
         log.info("Updating user: {}", id);
 
         var usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("user.not.found", id)));
 
         validateUpdateUser(usuario, dto);
 
@@ -85,40 +89,56 @@ public class UserCommandService {
     public void deleteUser(Long id) {
         log.info("Deleting user: {}", id);
         if (!usuarioRepository.existsById(id)) {
-            throw new IllegalArgumentException("User not found: " + id);
+            throw new IllegalArgumentException(msg.get("user.not.found", id));
         }
         usuarioRepository.deleteById(id);
     }
 
+    @Transactional
+    public void changePassword(String username, String currentPassword, String newPassword) {
+        log.info("Changing password for user: {}", username);
+
+        var usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("user.not.found"));
+
+        if (!passwordEncoder.matches(currentPassword, usuario.getPassword())) {
+            throw new BusinessException("La contraseña actual es incorrecta");
+        }
+
+        usuario.setPassword(passwordEncoder.encode(newPassword));
+        usuarioRepository.save(usuario);
+        log.info("Password changed successfully for user: {}", username);
+    }
+
     private RolEntity findRol(Long rolId) {
         return rolRepository.findById(rolId)
-                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + rolId));
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("user.role.not.found", rolId)));
     }
 
     private void validateNewUser(UserRequestDto dto) {
         if (usuarioRepository.existsByUsername(dto.username())) {
-            throw new IllegalArgumentException("Username already exists: " + dto.username());
+            throw new IllegalArgumentException(msg.get("user.username.exists", dto.username()));
         }
         if (usuarioRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("Email already exists: " + dto.email());
+            throw new IllegalArgumentException(msg.get("user.email.exists", dto.email()));
         }
         if (personaRepository.findByNumeroDocumento(dto.numeroDocumento()).isPresent()) {
-            throw new IllegalArgumentException("Document number already exists: " + dto.numeroDocumento());
+            throw new IllegalArgumentException(msg.get("user.document.exists", dto.numeroDocumento()));
         }
     }
 
     private void validateUpdateUser(UsuarioEntity current, UserRequestDto dto) {
         if (!current.getUsername().equals(dto.username()) && usuarioRepository.existsByUsername(dto.username())) {
-            throw new IllegalArgumentException("Username already exists: " + dto.username());
+            throw new IllegalArgumentException(msg.get("user.username.exists", dto.username()));
         }
         if (!current.getEmail().equals(dto.email()) && usuarioRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("Email already exists: " + dto.email());
+            throw new IllegalArgumentException(msg.get("user.email.exists", dto.email()));
         }
 
         var persona = current.getPersona();
         if (!persona.getNumeroDocumento().equals(dto.numeroDocumento()) &&
                 personaRepository.findByNumeroDocumento(dto.numeroDocumento()).isPresent()) {
-            throw new IllegalArgumentException("Document number already exists: " + dto.numeroDocumento());
+            throw new IllegalArgumentException(msg.get("user.document.exists", dto.numeroDocumento()));
         }
     }
 }

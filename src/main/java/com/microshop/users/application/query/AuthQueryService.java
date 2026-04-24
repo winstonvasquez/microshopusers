@@ -1,7 +1,7 @@
 package com.microshop.users.application.query;
 
 
-import com.microshop.users.infrastructure.web.dto.CheckEmailResponse;
+import com.microshop.users.application.dto.CheckEmailResponse;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

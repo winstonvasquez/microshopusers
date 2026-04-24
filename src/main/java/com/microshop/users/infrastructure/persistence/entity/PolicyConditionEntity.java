@@ -16,11 +16,12 @@ import org.hibernate.annotations.Comment;
 @Entity
 @Table(name = "policy_condition")
 @Comment("Condiciones evaluables para ABAC (Attribute-Based Access Control)")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true, exclude = { "policy" })
 public class PolicyConditionEntity extends AuditEntity {
 
     @Id

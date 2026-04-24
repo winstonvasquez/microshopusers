@@ -8,8 +8,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.Comment;
 
 import java.time.Instant;
@@ -17,10 +20,12 @@ import java.time.Instant;
 @Entity
 @Table(name = "policy_audit")
 @Comment("Auditoría de evaluaciones de políticas PBAC (registro inmutable)")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString
 public class PolicyAuditEntity {
 
     @Id

@@ -13,4 +13,10 @@ public interface ErpParameterJpaRepository extends JpaRepository<ErpParameterEnt
     Optional<ErpParameterEntity> findByParamKey(String paramKey);
 
     List<ErpParameterEntity> findAllByIsActiveTrue();
+
+    Optional<ErpParameterEntity> findByParamKeyAndTenantIdIsNull(String key);
+
+    Optional<ErpParameterEntity> findByParamKeyAndTenantId(String key, String tenantId);
+
+    List<ErpParameterEntity> findAllByIsActiveTrueAndTenantIdIsNull();
 }

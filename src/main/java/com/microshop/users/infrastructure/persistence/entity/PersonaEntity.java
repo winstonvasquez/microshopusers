@@ -18,11 +18,12 @@ import java.util.List;
 @Entity
 @Table(name = "persona")
 @Comment("Tabla maestra de personas naturales")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true, exclude = { "usuarios" })
 public class PersonaEntity extends AuditEntity {
 
     @Id

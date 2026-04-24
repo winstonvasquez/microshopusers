@@ -20,7 +20,7 @@ import org.hibernate.annotations.Comment;
 @Comment("Relación N:M entre políticas y roles - Punto de integración PBAC con RBAC")
 @Getter
 @Setter
-@ToString(callSuper = true)
+@ToString(callSuper = true, exclude = { "policy", "rol" })
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
