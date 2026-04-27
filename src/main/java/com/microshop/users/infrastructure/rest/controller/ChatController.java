@@ -177,7 +177,7 @@ public class ChatController {
      * GET /api/admin/chat/conversaciones
      */
     @GetMapping("/api/admin/chat/conversaciones")
-    @PreAuthorize("hasAnyRole('ADMIN','ROLE_ADMIN','SOPORTE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SOPORTE')")
     @Operation(summary = "Listar conversaciones activas (admin)")
     public ResponseEntity<List<ChatConversacionEntity>> listarConversacionesAdmin() {
         List<ChatConversacionEntity> activas = conversacionRepo.findByEstado("ABIERTA");
@@ -189,7 +189,7 @@ public class ChatController {
      * POST /api/admin/chat/conversaciones/{id}/mensajes
      */
     @PostMapping("/api/admin/chat/conversaciones/{id}/mensajes")
-    @PreAuthorize("hasAnyRole('ADMIN','ROLE_ADMIN','SOPORTE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SOPORTE')")
     @Operation(summary = "Soporte responde en la conversación")
     public ResponseEntity<ChatMensajeEntity> responderComoSoporte(
             @PathVariable Long id,

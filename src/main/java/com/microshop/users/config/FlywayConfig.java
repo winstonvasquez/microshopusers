@@ -1,60 +1,62 @@
 package com.microshop.users.config;
 
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
-import org.springframework.context.annotation.Bean;
+import org.flywaydb.core.api.output.MigrateResult;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 
 import javax.sql.DataSource;
 
 /**
  * Configuración multi-schema de Flyway.
- * Ejecuta migraciones en dos schemas independientes:
+ * Spring Boot 4.0.5 removió FlywayAutoConfiguration, así que ejecutamos
+ * Flyway.migrate() manualmente en @PostConstruct (los @Bean previos nunca se
+ * instanciaban porque nadie inyectaba el tipo Flyway).
+ *
+ * Schemas:
  * - dbshopusuarios: usuarios, empresas, autenticación
  * - dbshoprrhh: empleados, planillas, vacaciones, evaluaciones
  */
 @Configuration
+@RequiredArgsConstructor
+@Slf4j
 public class FlywayConfig {
 
-    /**
-     * Migración del schema de usuarios (ejecuta primero por @Order(1)).
-     */
-    @Bean
-    @Order(1)
-    public Flyway flywayUsuarios(DataSource dataSource) {
-        Flyway flyway = Flyway.configure()
-                .dataSource(dataSource)
-                .schemas("dbshopusuarios")
-                .defaultSchema("dbshopusuarios")
-                .locations("classpath:db/migration/usuarios")
-                .baselineOnMigrate(true)
-                .baselineVersion("0")
-                .createSchemas(true)
-                .validateOnMigrate(false)
-                .load();
-        flyway.repair();
-        flyway.migrate();
-        return flyway;
+    private final DataSource dataSource;
+
+    @PostConstruct
+    public void migrateAllSchemas() {
+        migrateSchema("dbshopusuarios", "classpath:db/migration/usuarios");
+        migrateSchema("dbshoprrhh", "classpath:db/migration/rrhh");
     }
 
-    /**
-     * Migración del schema de RRHH (ejecuta segundo por @Order(2)).
-     */
-    @Bean
-    @Order(2)
-    public Flyway flywayRrhh(DataSource dataSource) {
+    private void migrateSchema(String schema, String location) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
-                .schemas("dbshoprrhh")
-                .defaultSchema("dbshoprrhh")
-                .locations("classpath:db/migration/rrhh")
+                .schemas(schema)
+                .defaultSchema(schema)
+                .locations(location)
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
                 .createSchemas(true)
                 .validateOnMigrate(false)
                 .load();
+
         flyway.repair();
-        flyway.migrate();
-        return flyway;
+        MigrateResult result = flyway.migrate();
+
+        if (result.migrationsExecuted > 0) {
+            log.info("Flyway[{}]: aplicó {} migraciones → versión {}",
+                    schema, result.migrationsExecuted, result.targetSchemaVersion);
+            for (var m : result.migrations) {
+                log.info("  ✓ V{} - {}", m.version, m.description);
+            }
+        } else {
+            var current = flyway.info().current();
+            log.info("Flyway[{}]: schema al día (versión {})",
+                    schema, current != null ? current.getVersion() : "<vacío>");
+        }
     }
 }
