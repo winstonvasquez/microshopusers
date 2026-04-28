@@ -42,6 +42,15 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        log.warn("Acceso denegado: {}", ex.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        detail.setType(URI.create("urn:users:forbidden"));
+        detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
+        return detail;
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusiness(BusinessException ex) {
         log.warn("Error de negocio: {}", ex.getMessage());

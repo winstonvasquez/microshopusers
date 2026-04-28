@@ -159,6 +159,16 @@
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
 		</dependency>
+		<!-- AOP — para @RequiresTenantAccess (multi-tenant security).
+		     Spring Boot 4 no trae starter-aop modularizado; usar deps directas. -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-aop</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

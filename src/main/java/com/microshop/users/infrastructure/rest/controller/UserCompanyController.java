@@ -4,6 +4,7 @@ import com.microshop.users.application.command.UserCompanyCommandService;
 import com.microshop.users.application.query.UserCompanyQueryService;
 import com.microshop.users.application.mapper.UserCompanyMapper;
 import com.microshop.users.application.dto.UserCompanyResponseDto;
+import com.microshop.users.config.security.RequiresTenantAccess;
 import com.microshop.users.shared.constants.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,7 +29,8 @@ public class UserCompanyController {
     private final UserCompanyMapper userCompanyMapper;
 
     @PostMapping("/assign")
-    @Operation(summary = "Asignar usuario a empresa con rol")
+    @Operation(summary = "Asignar usuario a empresa con rol (admin tenant o SUPERADMIN)")
+    @RequiresTenantAccess(allowSuperAdmin = true)
     public ResponseEntity<Void> assignUserToCompany(@RequestParam @NonNull Long userId,
             @RequestParam @NonNull Long companyId,
             @RequestParam @NonNull Long roleId) {
