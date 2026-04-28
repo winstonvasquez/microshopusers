@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.payroll.PayrollRequestDto;
 import com.microshop.rrhh.application.dto.payroll.PayrollResponseDto;
 import com.microshop.rrhh.application.mapper.PayrollMapper;
 import com.microshop.users.application.MessageHelper;
+import com.microshop.rrhh.client.TesoreriaClient;
 import com.microshop.rrhh.client.UsersParameterClient;
 import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.*;
@@ -51,6 +52,7 @@ public class PayrollCommandService {
     private final TenantContext tenantContext;
     private final MessageHelper msg;
     private final UsersParameterClient usersParameterClient;
+    private final TesoreriaClient tesoreriaClient;
 
     public PayrollResponseDto createPayroll(@Valid PayrollRequestDto request) {
         Long tenantId = tenantContext.getCurrentTenantId();
@@ -105,6 +107,31 @@ public class PayrollCommandService {
         payroll.setEstado(Payroll.PayrollStatus.APROBADO);
         Payroll updated = payrollRepository.save(payroll);
         log.info("Planilla aprobada: {} - Tenant: {}", id, tenantId);
+
+        // Sprint 7.2 — Disparar pago en tesorería (fire-and-forget no bloquea aprobación
+        // si tesorería está caída; reintento manual via markAsPaid).
+        try {
+            BigDecimal monto = updated.getNeto() != null
+                    ? updated.getNeto() : BigDecimal.ZERO;
+            String periodo = updated.getPeriodo();
+            Long employeeId = updated.getEmployee() != null ? updated.getEmployee().getId() : null;
+
+            if (employeeId != null && monto.signum() > 0) {
+                tesoreriaClient.createPayrollPayment(tenantId, employeeId, periodo, monto)
+                        .doOnSuccess(paymentId -> log.info(
+                                "Pago planilla disparado en tesorería: paymentId={} payrollId={} monto={}",
+                                paymentId, id, monto))
+                        .doOnError(e -> log.warn(
+                                "Tesorería no respondió a pago planilla {}: {} (reintenta vía markAsPaid)",
+                                id, e.getMessage()))
+                        .subscribe();
+            } else {
+                log.warn("Planilla {} aprobada sin disparar pago — employeeId o monto inválido", id);
+            }
+        } catch (Exception e) {
+            log.warn("Fallo disparando pago automático para planilla {}: {}", id, e.getMessage());
+        }
+
         return payrollMapper.toDto(updated);
     }
 
