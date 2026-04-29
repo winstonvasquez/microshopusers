@@ -1,5 +1,6 @@
 package com.microshop.users.config.security;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
@@ -10,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -86,6 +89,17 @@ public class TenantAccessAspect {
                     if (v != null) return toLong(v);
                 } catch (Exception ignored2) { }
             } catch (Exception ignored) { }
+        }
+
+        // Estrategia 3: header X-Tenant-ID en la request HTTP actual
+        var attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof ServletRequestAttributes sra) {
+            HttpServletRequest req = sra.getRequest();
+            String header = req.getHeader("X-Tenant-ID");
+            if (header != null && !header.isBlank()) {
+                Long parsed = toLong(header.trim());
+                if (parsed != null) return parsed;
+            }
         }
         return null;
     }
