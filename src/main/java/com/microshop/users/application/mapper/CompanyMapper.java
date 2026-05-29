@@ -13,7 +13,7 @@ public class CompanyMapper {
         CompanyEntity entity = new CompanyEntity();
         entity.setName(dto.name());
         entity.setRuc(dto.ruc());
-        entity.setActive(dto.active());
+        entity.setActive(dto.active() != null ? dto.active() : true);
         entity.setLegalName(dto.legalName());
         entity.setAddress(dto.address());
         entity.setPhone(dto.phone());

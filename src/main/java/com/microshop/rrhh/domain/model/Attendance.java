@@ -122,12 +122,16 @@ public class Attendance {
     private void calculateHours() {
         if (horaEntrada != null && horaSalida != null) {
             Duration duration = Duration.between(horaEntrada, horaSalida);
-            double hours = duration.toMinutes() / 60.0;
-            horasTrabajadas = BigDecimal.valueOf(hours);
-            
+            // Hardening 2026-05-28: aritmética exacta minutos/60 con BigDecimal.
+            // Antes `toMinutes()/60.0` (double) introducía error IEEE-754 que se
+            // propagaba a horasExtras × tarifaHora × 1.25 en la planilla.
+            horasTrabajadas = BigDecimal.valueOf(duration.toMinutes())
+                    .divide(BigDecimal.valueOf(60), 4, java.math.RoundingMode.HALF_UP);
+
             // Calcular horas extras (más de 8 horas)
-            if (hours > 8) {
-                horasExtras = BigDecimal.valueOf(hours - 8);
+            BigDecimal jornada = BigDecimal.valueOf(8);
+            if (horasTrabajadas.compareTo(jornada) > 0) {
+                horasExtras = horasTrabajadas.subtract(jornada);
             }
         }
     }

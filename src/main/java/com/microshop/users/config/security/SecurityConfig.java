@@ -42,6 +42,16 @@ public class SecurityConfig {
                                 .csrf(AbstractHttpConfigurer::disable)
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .authorizeHttpRequests(auth -> auth
+                                                // Hardening 2026-05-28 (CRIT-3): las MUTACIONES de parámetros ERP
+                                                // (tasas SUNAT: UIT, ONP, ESSALUD) y de empresas requieren ADMIN.
+                                                // El GET sigue público: lo consume la planilla s2s y el onboarding.
+                                                // Los matchers restrictivos van ANTES del permitAll (primer match gana).
+                                                .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.POST, "/users/api/companies/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/users/api/companies/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                                                .requestMatchers(HttpMethod.DELETE, "/users/api/companies/**").hasAnyRole("ADMIN", "SUPERADMIN")
                                                 .requestMatchers(
                                                                 "/users/api/auth/**",
                                                                 "/users/api/companies/**",

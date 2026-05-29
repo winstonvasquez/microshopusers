@@ -15,7 +15,10 @@ public record CompanyRequestDto(
         @Pattern(regexp = "^[0-9]{11}$", message = "El RUC debe tener 11 dígitos numéricos")
         String ruc,
 
-        boolean active,
+        // Fix 2026-05-28: era `boolean` primitivo → omitirlo en el JSON causaba HTTP 500
+        // ("Cannot map null into type boolean"). Como Boolean es nullable y se defaultea a true
+        // en el mapper, omitirlo ya no rompe la creación de empresa.
+        Boolean active,
 
         @Size(max = 200, message = "La razón social no puede exceder los 200 caracteres")
         String legalName,

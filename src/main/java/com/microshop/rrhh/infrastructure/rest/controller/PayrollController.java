@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,24 +46,28 @@ public class PayrollController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
     @Operation(summary = "Crear planilla individual")
     public ResponseEntity<PayrollResponseDto> createPayroll(@Valid @RequestBody PayrollRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(payrollCommandService.createPayroll(request));
     }
 
     @PostMapping("/run")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
     @Operation(summary = "Generar planillas para un periodo")
     public ResponseEntity<List<PayrollResponseDto>> generatePayrollForPeriod(@RequestParam String periodo) {
         return ResponseEntity.status(HttpStatus.CREATED).body(payrollCommandService.generatePayrollForPeriod(periodo));
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
     @Operation(summary = "Aprobar planilla")
     public ResponseEntity<PayrollResponseDto> approvePayroll(@PathVariable Long id) {
         return ResponseEntity.ok(payrollCommandService.approvePayroll(id));
     }
 
     @PostMapping("/{id}/pay")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
     @Operation(summary = "Marcar planilla como pagada")
     public ResponseEntity<PayrollResponseDto> markAsPaid(@PathVariable Long id) {
         return ResponseEntity.ok(payrollCommandService.markAsPaid(id));
