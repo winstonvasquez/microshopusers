@@ -34,4 +34,17 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     Page<UsuarioSummary> findProjectedBy(Pageable pageable);
 
     Optional<UsuarioEntity> findByPinHash(String pinHash);
+
+    /**
+     * Candidatos para login por PIN: solo usuarios que tienen un PIN configurado.
+     * Evita iterar (y BCrypt-comparar) toda la tabla de usuarios.
+     */
+    java.util.List<UsuarioEntity> findByPinHashIsNotNull();
+
+    /**
+     * Candidatos para autorización de supervisor: usuarios con PIN configurado
+     * cuyo rol está entre los autorizadores. Reduce el set a un puñado antes del
+     * BCrypt-match (los roles se siembran en mayúsculas: ADMIN/GERENTE/SUPERADMIN).
+     */
+    java.util.List<UsuarioEntity> findByPinHashIsNotNullAndRol_NombreIn(java.util.Collection<String> rolNombres);
 }

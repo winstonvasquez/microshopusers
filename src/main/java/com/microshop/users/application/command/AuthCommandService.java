@@ -8,6 +8,7 @@ import com.microshop.users.application.MessageHelper;
 import com.microshop.users.application.dto.LoginRequest;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.SocialLoginRequest;
+import com.microshop.users.application.dto.SupervisorAuthResponse;
 import com.microshop.users.application.query.SaasQueryService;
 import com.microshop.users.config.SecurityProperties;
 
@@ -195,11 +196,10 @@ public class AuthCommandService {
      * Compara el PIN hasheado con BCrypt.
      */
     public LoginResponse pinLogin(String pin, Long companyId) {
-        // Hash the PIN and find user
-        var allUsers = usuarioRepository.findAll();
+        // Solo candidatos con PIN configurado (evita BCrypt sobre toda la tabla).
         UsuarioEntity user = null;
-        for (UsuarioEntity u : allUsers) {
-            if (u.getPinHash() != null && passwordEncoder.matches(pin, u.getPinHash())) {
+        for (UsuarioEntity u : usuarioRepository.findByPinHashIsNotNull()) {
+            if (passwordEncoder.matches(pin, u.getPinHash())) {
                 user = u;
                 break;
             }
@@ -218,6 +218,53 @@ public class AuthCommandService {
 
         return new LoginResponse(jwtToken, user.getUsername(), user.getId(),
                 resolvedCompanyId, getAvailableCompanyIds(userCompanies), enabledModules);
+    }
+
+    /** Roles habilitados para autorizar operaciones sensibles del POS (descuentos, etc.). */
+    private static final java.util.Set<String> ROLES_AUTORIZADORES =
+            java.util.Set.of("ADMIN", "GERENTE", "SUPERADMIN");
+
+    /**
+     * Verifica el PIN de un supervisor para autorizar una operación sensible en el POS.
+     * NO emite JWT ni crea sesión: solo confirma que el PIN pertenece a un usuario con
+     * rol autorizador y (si se indica) miembro de la empresa.
+     *
+     * <p>Reemplaza el "acepta cualquier PIN" del frontend. Ante PIN inválido, rol no
+     * autorizador o empresa distinta devuelve {@code authorized=false} sin detalle.</p>
+     */
+    @Transactional(readOnly = true)
+    public SupervisorAuthResponse verifySupervisorPin(String pin, Long companyId) {
+        if (pin == null || pin.isBlank()) {
+            return new SupervisorAuthResponse(false, null, null, null);
+        }
+
+        // Solo candidatos con PIN y rol autorizador: el filtro lo hace la BD, no un findAll().
+        UsuarioEntity supervisor = null;
+        for (UsuarioEntity u : usuarioRepository.findByPinHashIsNotNullAndRol_NombreIn(ROLES_AUTORIZADORES)) {
+            if (passwordEncoder.matches(pin, u.getPinHash())) {
+                supervisor = u;
+                break;
+            }
+        }
+
+        if (supervisor == null) {
+            return new SupervisorAuthResponse(false, null, null, null);
+        }
+
+        // El rol ya está garantizado por la query; se lee solo para devolverlo.
+        String rol = supervisor.getRol().getNombre().toUpperCase();
+
+        if (companyId != null) {
+            boolean perteneceEmpresa = getUserCompanies(supervisor.getId()).stream()
+                    .anyMatch(uc -> uc.getCompany().getId().equals(companyId) && uc.isActive());
+            if (!perteneceEmpresa) {
+                log.warn("Supervisor {} no pertenece a la empresa {} — autorización denegada",
+                        supervisor.getId(), companyId);
+                return new SupervisorAuthResponse(false, null, null, null);
+            }
+        }
+
+        return new SupervisorAuthResponse(true, supervisor.getId(), supervisor.getUsername(), rol);
     }
 
     /**

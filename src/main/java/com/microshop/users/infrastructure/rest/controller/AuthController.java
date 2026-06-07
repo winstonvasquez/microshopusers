@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import com.microshop.users.application.dto.CheckEmailResponse;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.SocialLoginRequest;
+import com.microshop.users.application.dto.SupervisorAuthResponse;
 import com.microshop.users.application.dto.VerifyOtpRequest;
 
 
@@ -76,6 +77,14 @@ public class AuthController {
     public ResponseEntity<Void> setPin(@PathVariable Long userId, @RequestParam String pin) {
         authCommandService.setPin(userId, pin);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/verify-supervisor-pin")
+    @Operation(summary = "Verifica el PIN de un supervisor para autorizar operaciones sensibles del POS")
+    public ResponseEntity<SupervisorAuthResponse> verifySupervisorPin(
+            @RequestParam String pin,
+            @RequestParam(required = false) Long companyId) {
+        return ResponseEntity.ok(authCommandService.verifySupervisorPin(pin, companyId));
     }
 
     /**
