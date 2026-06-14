@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.payroll.PayrollRequestDto;
 import com.microshop.rrhh.application.dto.payroll.PayrollResponseDto;
 import com.microshop.rrhh.application.mapper.PayrollMapper;
 import com.microshop.users.application.MessageHelper;
+import com.microshop.rrhh.client.ContabilidadClient;
 import com.microshop.rrhh.client.TesoreriaClient;
 import com.microshop.rrhh.client.UsersParameterClient;
 import com.microshop.rrhh.config.security.TenantContext;
@@ -53,6 +54,7 @@ public class PayrollCommandService {
     private final MessageHelper msg;
     private final UsersParameterClient usersParameterClient;
     private final TesoreriaClient tesoreriaClient;
+    private final ContabilidadClient contabilidadClient;
 
     public PayrollResponseDto createPayroll(@Valid PayrollRequestDto request) {
         Long tenantId = tenantContext.getCurrentTenantId();
@@ -130,6 +132,18 @@ public class PayrollCommandService {
             }
         } catch (Exception e) {
             log.warn("Fallo disparando pago automático para planilla {}: {}", id, e.getMessage());
+        }
+
+        // S12 — Asiento de provisión de planilla en contabilidad (best-effort, sin outbox).
+        // Si contabilidad falla, la aprobación ya quedó persistida; el asiento se reintenta manualmente.
+        try {
+            contabilidadClient.registrarAsientoPlanilla(updated)
+                    .doOnError(e -> log.warn(
+                            "Asiento planilla no registrado en contabilidad para payrollId={}: {}",
+                            id, e.getMessage()))
+                    .subscribe();
+        } catch (Exception e) {
+            log.warn("Fallo disparando asiento de planilla a contabilidad para payrollId={}: {}", id, e.getMessage());
         }
 
         return payrollMapper.toDto(updated);
