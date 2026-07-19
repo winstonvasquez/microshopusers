@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +35,17 @@ public class EmployeeController {
     @Operation(summary = "Listar todos los empleados")
     public ResponseEntity<List<EmployeeResponseDto>> getAllEmployees() {
         return ResponseEntity.ok(employeeQueryService.getAllEmployees());
+    }
+
+    @GetMapping("/paged")
+    @Operation(summary = "Listar empleados paginado (search + estado, server-side)")
+    public ResponseEntity<Page<EmployeeResponseDto>> getEmployeesPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Employee.EmployeeStatus status) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("apellidos").ascending());
+        return ResponseEntity.ok(employeeQueryService.getEmployeesPaged(search, status, pageable));
     }
 
     @GetMapping("/{id}")
