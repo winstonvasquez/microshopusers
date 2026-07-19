@@ -1,6 +1,8 @@
 package com.microshop.rrhh.infrastructure.persistence.repository;
 
 import com.microshop.rrhh.domain.model.Contract;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,4 +32,17 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     long countByTenantId(Long tenantId);
 
     long countByTenantIdAndEstado(Long tenantId, Contract.ContractStatus estado);
+
+    @Query("SELECT c FROM Contract c WHERE c.tenantId = :tenantId " +
+           "AND (:search IS NULL OR :search = '' OR " +
+           "  LOWER(c.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(c.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(c.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:estado IS NULL OR c.estado = :estado) " +
+           "AND (:tipo IS NULL OR c.tipoContrato = :tipo)")
+    Page<Contract> searchPaged(@Param("tenantId") Long tenantId,
+                               @Param("search") String search,
+                               @Param("estado") Contract.ContractStatus estado,
+                               @Param("tipo") Contract.ContractType tipo,
+                               Pageable pageable);
 }

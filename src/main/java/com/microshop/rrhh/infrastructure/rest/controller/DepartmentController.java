@@ -12,6 +12,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +29,16 @@ public class DepartmentController {
 
     private final DepartmentCommandService departmentCommandService;
     private final DepartmentQueryService departmentQueryService;
+
+    @GetMapping("/paged")
+    public ResponseEntity<Page<DepartmentResponseDto>> getDepartmentsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean activo) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
+        return ResponseEntity.ok(departmentQueryService.getDepartmentsPaged(search, activo, pageable));
+    }
 
     @GetMapping
     @Operation(summary = "Listar todos los departamentos activos")

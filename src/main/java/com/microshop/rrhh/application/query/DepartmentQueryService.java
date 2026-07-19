@@ -8,6 +8,8 @@ import com.microshop.rrhh.infrastructure.persistence.repository.DepartmentReposi
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,12 @@ public class DepartmentQueryService {
     private final DepartmentMapper departmentMapper;
     private final TenantContext tenantContext;
     private final MessageSource messageSource;
+
+    public Page<DepartmentResponseDto> getDepartmentsPaged(String search, Boolean activo, Pageable pageable) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        String term = (search == null || search.isBlank()) ? null : search.trim();
+        return departmentRepository.searchPaged(tenantId, term, activo, pageable).map(departmentMapper::toDto);
+    }
 
     public List<DepartmentResponseDto> getAllDepartments() {
         Long tenantId = tenantContext.getCurrentTenantId();

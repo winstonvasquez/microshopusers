@@ -1,6 +1,8 @@
 package com.microshop.rrhh.infrastructure.persistence.repository;
 
 import com.microshop.rrhh.domain.model.Position;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +34,14 @@ public interface PositionRepository extends JpaRepository<Position, Long> {
            "(LOWER(p.nombre) LIKE LOWER(CONCAT('%', :term, '%')) OR " +
            "LOWER(p.codigo) LIKE LOWER(CONCAT('%', :term, '%')))")
     List<Position> searchByTenantIdAndTerm(@Param("tenantId") Long tenantId, @Param("term") String term);
+
+    @Query("SELECT p FROM Position p WHERE p.tenantId = :tenantId " +
+           "AND (:search IS NULL OR :search = '' OR " +
+           "  LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:departmentId IS NULL OR p.department.id = :departmentId)")
+    Page<Position> searchPaged(@Param("tenantId") Long tenantId,
+                               @Param("search") String search,
+                               @Param("departmentId") Long departmentId,
+                               Pageable pageable);
 }

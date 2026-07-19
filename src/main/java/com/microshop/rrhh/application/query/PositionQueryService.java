@@ -8,6 +8,8 @@ import com.microshop.rrhh.infrastructure.persistence.repository.PositionReposito
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,12 @@ public class PositionQueryService {
     private final PositionMapper positionMapper;
     private final TenantContext tenantContext;
     private final MessageSource messageSource;
+
+    public Page<PositionResponseDto> getPositionsPaged(String search, Long departmentId, Pageable pageable) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        String term = (search == null || search.isBlank()) ? null : search.trim();
+        return positionRepository.searchPaged(tenantId, term, departmentId, pageable).map(positionMapper::toDto);
+    }
 
     public List<PositionResponseDto> getAllPositions() {
         Long tenantId = tenantContext.getCurrentTenantId();

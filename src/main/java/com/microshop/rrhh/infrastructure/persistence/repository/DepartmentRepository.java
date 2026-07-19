@@ -1,6 +1,8 @@
 package com.microshop.rrhh.infrastructure.persistence.repository;
 
 import com.microshop.rrhh.domain.model.Department;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +34,14 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
            "(LOWER(d.nombre) LIKE LOWER(CONCAT('%', :term, '%')) OR " +
            "LOWER(d.codigo) LIKE LOWER(CONCAT('%', :term, '%')))")
     List<Department> searchByTenantIdAndTerm(@Param("tenantId") Long tenantId, @Param("term") String term);
+
+    @Query("SELECT d FROM Department d WHERE d.tenantId = :tenantId " +
+           "AND (:search IS NULL OR :search = '' OR " +
+           "  LOWER(d.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(d.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:activo IS NULL OR d.activo = :activo)")
+    Page<Department> searchPaged(@Param("tenantId") Long tenantId,
+                                 @Param("search") String search,
+                                 @Param("activo") Boolean activo,
+                                 Pageable pageable);
 }

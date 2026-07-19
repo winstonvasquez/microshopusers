@@ -16,6 +16,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.microshop.rrhh.domain.model.VacationRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +35,16 @@ public class VacationController {
 
     private final VacationCommandService vacationCommandService;
     private final VacationQueryService vacationQueryService;
+
+    @GetMapping("/paged")
+    public ResponseEntity<Page<VacationResponseDto>> getVacationsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) VacationRequest.VacationStatus estado) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        return ResponseEntity.ok(vacationQueryService.getVacationsPaged(search, estado, pageable));
+    }
     private final LeaveBalanceCommandService leaveBalanceCommandService;
     private final LeaveBalanceQueryService leaveBalanceQueryService;
 

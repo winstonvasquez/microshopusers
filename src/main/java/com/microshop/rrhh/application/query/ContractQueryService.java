@@ -8,6 +8,8 @@ import com.microshop.rrhh.infrastructure.persistence.repository.ContractReposito
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,13 @@ public class ContractQueryService {
     private final ContractMapper contractMapper;
     private final TenantContext tenantContext;
     private final MessageSource messageSource;
+
+    public Page<ContractResponseDto> getContractsPaged(String search, Contract.ContractStatus estado,
+                                                       Contract.ContractType tipo, Pageable pageable) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        String term = (search == null || search.isBlank()) ? null : search.trim();
+        return contractRepository.searchPaged(tenantId, term, estado, tipo, pageable).map(contractMapper::toDto);
+    }
 
     public List<ContractResponseDto> getAllContracts() {
         Long tenantId = tenantContext.getCurrentTenantId();
