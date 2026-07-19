@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/analytics")
+@RequestMapping("/hr/api/analytics")
 @RequiredArgsConstructor
 @Tag(name = "Analytics", description = "Dashboard analítico de RRHH")
 @SecurityRequirement(name = "bearer-key")
