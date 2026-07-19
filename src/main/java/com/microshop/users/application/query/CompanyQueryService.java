@@ -17,6 +17,9 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +36,11 @@ public class CompanyQueryService {
 
     public List<CompanyResponseDto> findAll() {
         return companyRepository.findAllProjected();
+    }
+
+    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Pageable pageable) {
+        String term = (search == null || search.isBlank()) ? null : search.trim();
+        return companyRepository.searchPaged(term, active, pageable);
     }
 
     public Optional<CompanyResponseDto> findById(@NonNull Long id) {

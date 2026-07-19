@@ -14,6 +14,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
@@ -44,6 +48,17 @@ public class CompanyController {
     @Operation(summary = "Listar empresas", description = "Retorna todas las empresas registradas")
     public ResponseEntity<List<CompanyResponseDto>> getAllCompanies() {
         return ResponseEntity.ok(companyQueryService.findAll());
+    }
+
+    @GetMapping("/paged")
+    @Operation(summary = "Listar empresas paginado (server-side)")
+    public ResponseEntity<Page<CompanyResponseDto>> getCompaniesPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+        return ResponseEntity.ok(companyQueryService.findPaged(search, active, pageable));
     }
 
     @GetMapping("/{id}")
