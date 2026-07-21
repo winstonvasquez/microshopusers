@@ -43,9 +43,13 @@ public class WebClientConfig {
 
     @Bean
     public WebClient tesoreriaWebClient(WebClient.Builder builder) {
-        return builder
+        // Fix S2S 2026-07-20: el pago de planilla (/treasury/api/payments/payroll) fallaba
+        // silenciosamente con 401 — este bean no adjuntaba X-Internal-Token (a diferencia
+        // de contabilidadWebClient). Mismo patrón s2s del 2026-04-28.
+        return builder.clone()
                 .baseUrl("http://localhost:8084")
                 .defaultHeader("Content-Type", "application/json")
+                .filter(internalTokenFilter())
                 .build();
     }
 

@@ -6,6 +6,7 @@ import com.microshop.rrhh.application.mapper.AttendanceMapper;
 import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.Attendance;
 import com.microshop.rrhh.infrastructure.persistence.repository.AttendanceRepository;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,10 +55,8 @@ public class AttendanceQueryService {
         LocalDate start = month.atDay(1);
         LocalDate end = month.atEndOfMonth();
 
-        // Get all attendance for the month
-        List<Attendance> allAttendance = attendanceRepository.findByTenantId(tenantId).stream()
-                .filter(a -> !a.getFecha().isBefore(start) && !a.getFecha().isAfter(end))
-                .toList();
+        // Get all attendance for the month (query acotada por rango, no trae todo el histórico)
+        List<Attendance> allAttendance = attendanceRepository.findByTenantIdAndFechaBetween(tenantId, start, end);
 
         // Group by employee
         Map<Long, List<Attendance>> grouped = allAttendance.stream()
@@ -67,7 +66,7 @@ public class AttendanceQueryService {
                 .map(entry -> {
                     List<Attendance> records = entry.getValue();
                     Attendance first = records.getFirst();
-                    String empName = first.getEmployee().getNombres() + " " + first.getEmployee().getApellidos();
+                    String empName = AppUtils.fullName(first.getEmployee().getNombres(), first.getEmployee().getApellidos());
 
                     int diasTrabajados = (int) records.stream()
                             .filter(a -> a.getTipoRegistro() == Attendance.AttendanceType.NORMAL ||

@@ -84,10 +84,23 @@ public class PayrollCommandService {
         List<Employee> activeEmployees = employeeRepository.findByTenantIdAndEstado(
                 tenantId, Employee.EmployeeStatus.ACTIVO);
 
+        // Parámetros ERP: mismos valores para TODOS los empleados de la corrida — se izan
+        // fuera del loop (antes: 5 HTTP bloqueantes POR empleado en calcularPlanillaPeruana).
+        ParametrosPlanilla parametros = new ParametrosPlanilla(
+                usersParameterClient.getDecimal("RMV", "1025.00"),
+                usersParameterClient.getDecimal("ASIGNACION_FAMILIAR", "102.50"),
+                usersParameterClient.getDecimal("UIT_ANIO", "5150.00"),
+                usersParameterClient.getDecimal("TASA_ONP", "0.13"),
+                usersParameterClient.getDecimal("TASA_ESSALUD", "0.09"));
+
+        // Dedup: UNA query para el periodo completo en vez de un findBy...Periodo POR empleado (N+1).
+        Set<Long> employeeIdsConPlanilla = payrollRepository.findByTenantIdAndPeriodo(tenantId, periodo).stream()
+                .map(p -> p.getEmployee().getId())
+                .collect(Collectors.toSet());
+
         List<Payroll> payrolls = activeEmployees.stream()
-                .filter(emp -> payrollRepository.findByTenantIdAndEmployee_IdAndPeriodo(
-                        tenantId, emp.getId(), periodo).isEmpty())
-                .map(emp -> calcularPlanillaPeruana(emp, periodo, ym, month))
+                .filter(emp -> !employeeIdsConPlanilla.contains(emp.getId()))
+                .map(emp -> calcularPlanillaPeruana(emp, periodo, ym, month, parametros))
                 .toList();
 
         List<Payroll> saved = payrollRepository.saveAll(payrolls);
@@ -166,16 +179,30 @@ public class PayrollCommandService {
     }
 
     /**
+     * Parámetros ERP compartidos por toda una corrida de planilla (mismos valores para
+     * todos los empleados del periodo) — se calculan UNA vez en generatePayrollForPeriod
+     * en vez de una llamada HTTP por empleado.
+     */
+    private record ParametrosPlanilla(
+            BigDecimal rmv,
+            BigDecimal asignacionFam,
+            BigDecimal uit,
+            BigDecimal tasaOnp,
+            BigDecimal tasaEssalud) {
+    }
+
+    /**
      * Full Peruvian payroll calculation.
      * AFP individual per employee, complete Renta 5ta (5 brackets),
      * overtime from attendance, gratificacion (Jul/Dec), CTS (May/Nov).
      */
-    private Payroll calcularPlanillaPeruana(Employee emp, String periodo, YearMonth ym, int month) {
-        BigDecimal rmv = usersParameterClient.getDecimal("RMV", "1025.00");
-        BigDecimal asignacionFam = usersParameterClient.getDecimal("ASIGNACION_FAMILIAR", "102.50");
-        BigDecimal uit = usersParameterClient.getDecimal("UIT_ANIO", "5150.00");
-        BigDecimal tasaOnp = usersParameterClient.getDecimal("TASA_ONP", "0.13");
-        BigDecimal tasaEssalud = usersParameterClient.getDecimal("TASA_ESSALUD", "0.09");
+    private Payroll calcularPlanillaPeruana(Employee emp, String periodo, YearMonth ym, int month,
+                                             ParametrosPlanilla parametros) {
+        BigDecimal rmv = parametros.rmv();
+        BigDecimal asignacionFam = parametros.asignacionFam();
+        BigDecimal uit = parametros.uit();
+        BigDecimal tasaOnp = parametros.tasaOnp();
+        BigDecimal tasaEssalud = parametros.tasaEssalud();
 
         // 1. Sueldo base
         BigDecimal sueldoBase = emp.getSalaries().stream()

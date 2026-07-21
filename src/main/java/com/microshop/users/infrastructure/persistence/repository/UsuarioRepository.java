@@ -4,6 +4,8 @@ import com.microshop.users.infrastructure.persistence.entity.UsuarioEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -40,6 +42,17 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
      * Evita iterar (y BCrypt-comparar) toda la tabla de usuarios.
      */
     java.util.List<UsuarioEntity> findByPinHashIsNotNull();
+
+    /**
+     * Candidatos para login por PIN acotados a UNA empresa: usuarios con PIN configurado
+     * que son miembros ACTIVOS de esa empresa (via user_company). Evita escanear (y
+     * BCrypt-comparar) usuarios con PIN de TODOS los tenants — solo los de la empresa
+     * solicitada.
+     */
+    @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
+           "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
+           "WHERE u.pinHash IS NOT NULL AND uc.company.id = :companyId AND uc.isActive = true")
+    java.util.List<UsuarioEntity> findByPinHashIsNotNullAndCompanyId(@Param("companyId") Long companyId);
 
     /**
      * Candidatos para autorización de supervisor: usuarios con PIN configurado

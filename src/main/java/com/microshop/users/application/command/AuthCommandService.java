@@ -196,9 +196,16 @@ public class AuthCommandService {
      * Compara el PIN hasheado con BCrypt.
      */
     public LoginResponse pinLogin(String pin, Long companyId) {
-        // Solo candidatos con PIN configurado (evita BCrypt sobre toda la tabla).
+        // Candidatos con PIN configurado. Si se especifica empresa, acotamos a los
+        // miembros ACTIVOS de ESA empresa (query companyId != null) — evita escanear
+        // (y BCrypt-comparar) usuarios con PIN de TODOS los tenants. Sin empresa
+        // (caso raro/legacy) mantenemos el escaneo global previo.
+        List<UsuarioEntity> candidatos = companyId != null
+                ? usuarioRepository.findByPinHashIsNotNullAndCompanyId(companyId)
+                : usuarioRepository.findByPinHashIsNotNull();
+
         UsuarioEntity user = null;
-        for (UsuarioEntity u : usuarioRepository.findByPinHashIsNotNull()) {
+        for (UsuarioEntity u : candidatos) {
             if (passwordEncoder.matches(pin, u.getPinHash())) {
                 user = u;
                 break;
@@ -210,7 +217,12 @@ public class AuthCommandService {
 
         var userCompanies = getUserCompanies(user.getId());
         var resolvedCompanyId = determineCompanyId(companyId, userCompanies);
-        validateCompanyMembership(resolvedCompanyId, userCompanies);
+        if (companyId == null) {
+            // Sin empresa solicitada: se resolvió un default de la lista del usuario,
+            // igual que antes. Con empresa solicitada, la query ya garantizó membresía
+            // activa — revalidar aquí sería redundante.
+            validateCompanyMembership(resolvedCompanyId, userCompanies);
+        }
 
         var jwtToken = generateJwtToken(user, resolvedCompanyId);
         createSession(user, jwtToken, resolvedCompanyId);

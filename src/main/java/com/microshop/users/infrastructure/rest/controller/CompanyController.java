@@ -6,6 +6,7 @@ import com.microshop.users.application.query.SaasQueryService;
 import com.microshop.users.infrastructure.persistence.entity.CompanyEntity;
 import com.microshop.users.application.mapper.CompanyMapper;
 import com.microshop.users.application.dto.*;
+import com.microshop.users.config.security.RequiresTenantAccess;
 import com.microshop.users.shared.constants.ApiPaths;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,26 +89,30 @@ public class CompanyController {
 
     @GetMapping("/{id}/modules")
     @Operation(summary = "Módulos habilitados por empresa")
-    public ResponseEntity<List<SaasModuleDto>> getCompanyModules(@PathVariable Long id) {
-        return ResponseEntity.ok(saasQueryService.getEnabledModules(id));
+    @RequiresTenantAccess(allowSuperAdmin = true)
+    public ResponseEntity<List<SaasModuleDto>> getCompanyModules(@PathVariable("id") Long companyId) {
+        return ResponseEntity.ok(saasQueryService.getEnabledModules(companyId));
     }
 
     @GetMapping("/{id}/users")
     @Operation(summary = "Usuarios asignados a la empresa")
-    public ResponseEntity<List<CompanyUserDto>> getCompanyUsers(@PathVariable Long id) {
-        return ResponseEntity.ok(companyQueryService.findUsersByCompanyId(id));
+    @RequiresTenantAccess(allowSuperAdmin = true)
+    public ResponseEntity<List<CompanyUserDto>> getCompanyUsers(@PathVariable("id") Long companyId) {
+        return ResponseEntity.ok(companyQueryService.findUsersByCompanyId(companyId));
     }
 
     @GetMapping("/{id}/subscription")
     @Operation(summary = "Suscripción activa de la empresa")
-    public ResponseEntity<CompanySubscriptionDto> getCompanySubscription(@PathVariable Long id) {
-        return companyQueryService.findSubscriptionByCompanyId(id)
+    @RequiresTenantAccess(allowSuperAdmin = true)
+    public ResponseEntity<CompanySubscriptionDto> getCompanySubscription(@PathVariable("id") Long companyId) {
+        return companyQueryService.findSubscriptionByCompanyId(companyId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
     }
 
     @PutMapping("/{companyId}/modules/{moduleId}")
     @Operation(summary = "Activar/desactivar módulo para empresa")
+    @RequiresTenantAccess(allowSuperAdmin = true)
     public ResponseEntity<Void> toggleCompanyModule(
             @PathVariable Long companyId,
             @PathVariable Long moduleId,
