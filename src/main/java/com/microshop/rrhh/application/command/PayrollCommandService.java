@@ -12,6 +12,7 @@ import com.microshop.rrhh.domain.model.*;
 import com.microshop.rrhh.infrastructure.persistence.repository.AttendanceRepository;
 import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeRepository;
 import com.microshop.rrhh.infrastructure.persistence.repository.PayrollRepository;
+import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.BusinessException;
 import com.microshop.users.shared.exception.ConflictException;
 import com.microshop.users.shared.exception.NotFoundException;
@@ -230,9 +231,9 @@ public class PayrollCommandService {
                 .count();
 
         // Overtime: 25% surcharge for first 2h, 35% after (DL 854 art. 10)
-        BigDecimal tarifaHora = sueldoBase.divide(new BigDecimal("240"), 4, RoundingMode.HALF_UP);
+        BigDecimal tarifaHora = sueldoBase.divide(AppConstants.Negocio.HORAS_MES_LEGAL, 4, RoundingMode.HALF_UP);
         BigDecimal montoHorasExtras = horasExtras.multiply(tarifaHora)
-                .multiply(new BigDecimal("1.25"))
+                .multiply(AppConstants.Negocio.RECARGO_HORA_EXTRA)
                 .setScale(2, RoundingMode.HALF_UP);
 
         // 4. Base computable
@@ -255,8 +256,8 @@ public class PayrollCommandService {
         BigDecimal essalud = baseComputable.multiply(tasaEssalud).setScale(2, RoundingMode.HALF_UP);
 
         // 7. Renta 5ta — complete 5 brackets (art. 53 LIR)
-        BigDecimal proyAnual = sueldoBase.multiply(new BigDecimal("14")); // 12 + 2 grat
-        BigDecimal deduccion7UIT = uit.multiply(new BigDecimal("7"));
+        BigDecimal proyAnual = sueldoBase.multiply(BigDecimal.valueOf(AppConstants.Negocio.MESES_PROYECCION_ANUAL)); // 12 + 2 grat
+        BigDecimal deduccion7UIT = uit.multiply(BigDecimal.valueOf(AppConstants.Negocio.UIT_DEDUCCION_RENTA5TA));
         BigDecimal rentaQuinta = calcularRenta5ta(proyAnual, deduccion7UIT, uit);
 
         // 8. Gratificación (July and December)
@@ -270,7 +271,7 @@ public class PayrollCommandService {
         if (month == 5 || month == 11) {
             BigDecimal grat = sueldoBase.add(asigFamiliar);
             cts = sueldoBase.add(asigFamiliar)
-                    .add(grat.divide(new BigDecimal("6"), 2, RoundingMode.HALF_UP))
+                    .add(grat.divide(BigDecimal.valueOf(AppConstants.Negocio.DIVISOR_GRATIFICACION), 2, RoundingMode.HALF_UP))
                     .divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP); // semestral
         }
 
@@ -356,7 +357,7 @@ public class PayrollCommandService {
             impuesto = impuesto.add(exceso.multiply(rates[4]));
         }
 
-        return impuesto.divide(new BigDecimal("12"), 2, RoundingMode.HALF_UP);
+        return impuesto.divide(BigDecimal.valueOf(AppConstants.Negocio.MESES_ANIO), 2, RoundingMode.HALF_UP);
     }
 
     private void addDetail(Payroll payroll, String concepto, PayrollDetail.ConceptType tipo,

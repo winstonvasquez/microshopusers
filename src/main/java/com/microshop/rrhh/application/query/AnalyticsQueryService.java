@@ -10,6 +10,7 @@ import com.microshop.rrhh.domain.model.PerformanceEvaluation;
 import com.microshop.rrhh.domain.model.Training;
 import com.microshop.rrhh.domain.model.VacationRequest;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
+import com.microshop.users.shared.constants.AppConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,7 +78,7 @@ public class AnalyticsQueryService {
 
         // Contracts
         long activeContracts = contractRepository.findByTenantIdAndEstado(tenantId, Contract.ContractStatus.ACTIVO).size();
-        LocalDate in30Days = LocalDate.now().plusDays(30);
+        LocalDate in30Days = LocalDate.now().plusDays(AppConstants.Negocio.DIAS_ALERTA_VENCIMIENTO_CONTRATO);
         long expiring = contractRepository.findByTenantIdAndEstado(tenantId, Contract.ContractStatus.ACTIVO).stream()
                 .filter(c -> c.getFechaFin() != null && c.getFechaFin().isBefore(in30Days))
                 .count();

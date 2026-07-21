@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.contract.ContractRequestDto;
 import com.microshop.rrhh.application.dto.contract.ContractResponseDto;
 import com.microshop.rrhh.domain.model.Contract;
 import com.microshop.rrhh.domain.model.Employee;
+import com.microshop.users.shared.constants.AppConstants;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -43,7 +44,7 @@ public class ContractMapper {
         Employee emp = entity.getEmployee();
         boolean expiringSoon = entity.getFechaFin() != null
                 && entity.getEstado() == Contract.ContractStatus.ACTIVO
-                && entity.getFechaFin().isBefore(LocalDate.now().plusDays(30));
+                && entity.getFechaFin().isBefore(LocalDate.now().plusDays(AppConstants.Negocio.DIAS_ALERTA_VENCIMIENTO_CONTRATO));
 
         return ContractResponseDto.builder()
                 .id(entity.getId())
