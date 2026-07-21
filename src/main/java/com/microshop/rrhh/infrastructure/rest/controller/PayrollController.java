@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.dto.payroll.PayrollRequestDto;
 import com.microshop.rrhh.application.dto.payroll.PayrollResponseDto;
 import com.microshop.rrhh.application.query.PayrollQueryService;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,28 +47,28 @@ public class PayrollController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_INTERNAL)
     @Operation(summary = "Crear planilla individual")
     public ResponseEntity<PayrollResponseDto> createPayroll(@Valid @RequestBody PayrollRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(payrollCommandService.createPayroll(request));
     }
 
     @PostMapping("/run")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_INTERNAL)
     @Operation(summary = "Generar planillas para un periodo")
     public ResponseEntity<List<PayrollResponseDto>> generatePayrollForPeriod(@RequestParam String periodo) {
         return ResponseEntity.status(HttpStatus.CREATED).body(payrollCommandService.generatePayrollForPeriod(periodo));
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_INTERNAL)
     @Operation(summary = "Aprobar planilla")
     public ResponseEntity<PayrollResponseDto> approvePayroll(@PathVariable Long id) {
         return ResponseEntity.ok(payrollCommandService.approvePayroll(id));
     }
 
     @PostMapping("/{id}/pay")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_INTERNAL)
     @Operation(summary = "Marcar planilla como pagada")
     public ResponseEntity<PayrollResponseDto> markAsPaid(@PathVariable Long id) {
         return ResponseEntity.ok(payrollCommandService.markAsPaid(id));

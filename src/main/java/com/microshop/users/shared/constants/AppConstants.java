@@ -39,12 +39,17 @@ public final class AppConstants {
         // comparación directa contra GrantedAuthority.getAuthority().
         public static final String ROLE_SUPERADMIN = "ROLE_SUPERADMIN";
         public static final String ROLE_ADMIN = "ROLE_ADMIN";
+        public static final String ROLE_SOPORTE = "ROLE_SOPORTE";
         public static final String ROLE_INTERNAL_SERVICE = "ROLE_INTERNAL_SERVICE";
 
         // Expresión SpEL compile-time usada en @PreAuthorize de PayrollController
         // para endpoints accesibles por ADMIN humano o por llamadas internas s2s.
         public static final String ADMIN_OR_INTERNAL =
                 "hasRole('ADMIN') or hasAuthority('ROLE_INTERNAL_SERVICE')";
+
+        // Expresión SpEL compile-time para endpoints accesibles por staff de soporte
+        // (admin humano o rol SOPORTE). Usada en @PreAuthorize de ChatController.
+        public static final String ADMIN_OR_SOPORTE = "hasAnyRole('ADMIN', 'SOPORTE')";
 
         // Headers HTTP — ver WebClientConfig.java (s2s) y TenantAccessAspect.java (tenant).
         public static final String X_INTERNAL_TOKEN = "X-Internal-Token";

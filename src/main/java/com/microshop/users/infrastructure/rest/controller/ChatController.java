@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Controlador REST para el chat de soporte cliente ↔ MicroShop.
@@ -93,13 +94,16 @@ public class ChatController {
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Conversación no encontrada: " + id));
 
         Long emisorId = resolverClienteId(principal.getUsername());
-        // Determinar tipo de emisor según si el usuario es admin/soporte
-        // NOTA (pendiente, no tocado en esta ronda value-preserving): .contains() es un
-        // matching débil — matchearía cualquier authority que CONTENGA el literal, no
-        // igualdad exacta. Marcado por la auditoría; requiere fix de lógica en otra ronda.
+        // Determinar tipo de emisor: el personal de staff (admin/superadmin/soporte)
+        // envía como "SOPORTE"; el resto como "CLIENTE". Comparación EXACTA contra la
+        // authority ROLE_* — antes usaba .contains() (matching débil que matchearía
+        // cualquier authority conteniendo el literal). Fix auditoría 2026-07-20.
+        Set<String> rolesStaff = Set.of(
+                AppConstants.Seguridad.ROLE_ADMIN,
+                AppConstants.Seguridad.ROLE_SUPERADMIN,
+                AppConstants.Seguridad.ROLE_SOPORTE);
         boolean esAdmin = principal.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().contains(AppConstants.Seguridad.ADMIN)
-                        || a.getAuthority().contains(AppConstants.Seguridad.SOPORTE));
+                .anyMatch(a -> rolesStaff.contains(a.getAuthority()));
         String emisorTipo = esAdmin ? "SOPORTE" : "CLIENTE";
 
         String contenido = body.get("contenido");
@@ -182,7 +186,7 @@ public class ChatController {
      * GET /api/admin/chat/conversaciones
      */
     @GetMapping("/api/admin/chat/conversaciones")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SOPORTE')")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
     @Operation(summary = "Listar conversaciones activas (admin)")
     public ResponseEntity<List<ChatConversacionEntity>> listarConversacionesAdmin() {
         List<ChatConversacionEntity> activas = conversacionRepo.findByEstado("ABIERTA");
@@ -194,7 +198,7 @@ public class ChatController {
      * POST /api/admin/chat/conversaciones/{id}/mensajes
      */
     @PostMapping("/api/admin/chat/conversaciones/{id}/mensajes")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SOPORTE')")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
     @Operation(summary = "Soporte responde en la conversación")
     public ResponseEntity<ChatMensajeEntity> responderComoSoporte(
             @PathVariable Long id,
