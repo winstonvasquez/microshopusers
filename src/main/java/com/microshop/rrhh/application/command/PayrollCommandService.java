@@ -38,15 +38,20 @@ import java.util.stream.Collectors;
 @Slf4j
 public class PayrollCommandService {
 
-    // AFP rates por defecto (aporte obligatorio + comisión + seguro)
-    // Se leen de parámetros ERP con fallback a estos valores
-    private static final Map<String, String> AFP_RATE_DEFAULTS = Map.of(
-            "HABITAT",   "0.1270",
-            "INTEGRA",   "0.1214",
-            "PRIMA",     "0.1218",
-            "PROFUTURO", "0.1254"
-    );
-    private static final String AFP_RATE_DEFAULT_FALLBACK = "0.1230";
+    // Tasa AFP por defecto: se lee del parámetro ERP AFP_RATE_<NOMBRE> (editable por
+    // empresa/período) con fallback a la tasa total del enum de dominio Afp (fuente
+    // única de tasas oficiales SBS). Ver defaultAfpRate() y el enum Afp.
+    // Fallback usado solo si el nombre de AFP no existe en el enum.
+    private static final String AFP_RATE_DEFAULT_FALLBACK = "0.1290";
+
+    /** Tasa AFP total por defecto (fuente única = enum Afp); fallback si el nombre es desconocido. */
+    private static String defaultAfpRate(String afpNombre) {
+        try {
+            return com.microshop.rrhh.domain.enums.Afp.valueOf(afpNombre).tasaTotal().toPlainString();
+        } catch (IllegalArgumentException e) {
+            return AFP_RATE_DEFAULT_FALLBACK;
+        }
+    }
 
     private final PayrollRepository payrollRepository;
     private final EmployeeRepository employeeRepository;
@@ -245,7 +250,7 @@ public class PayrollCommandService {
         if ("AFP".equals(sistemaPension) && emp.getAfpNombre() != null) {
             String afpNombre = emp.getAfpNombre().toUpperCase();
             String paramKey = "AFP_RATE_" + afpNombre;
-            String defaultRate = AFP_RATE_DEFAULTS.getOrDefault(afpNombre, AFP_RATE_DEFAULT_FALLBACK);
+            String defaultRate = defaultAfpRate(afpNombre);
             BigDecimal afpRate = usersParameterClient.getDecimal(paramKey, defaultRate);
             montoAfpOnp = baseComputable.multiply(afpRate).setScale(2, RoundingMode.HALF_UP);
         } else {

@@ -2,6 +2,7 @@ package com.microshop.rrhh.infrastructure.rest.controller;
 
 import com.microshop.rrhh.application.dto.configuracion.ConfiguracionRemunerativaDto;
 import com.microshop.rrhh.client.UsersParameterClient;
+import com.microshop.rrhh.domain.enums.Afp;
 import com.microshop.rrhh.shared.constants.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,11 +52,22 @@ public class ConfiguracionController {
                 new ConfiguracionRemunerativaDto.TramoRenta5ta(35, 45,             0.20),
                 new ConfiguracionRemunerativaDto.TramoRenta5ta(45, Double.MAX_VALUE, 0.30)
             ),
-            new ConfiguracionRemunerativaDto.AfpTasas(0.10, 0.01748, 0.00874),  // INTEGRA
-            new ConfiguracionRemunerativaDto.AfpTasas(0.10, 0.01842, 0.01069),  // PRIMA
-            new ConfiguracionRemunerativaDto.AfpTasas(0.10, 0.01842, 0.01587),  // PROFUTURO
-            new ConfiguracionRemunerativaDto.AfpTasas(0.10, 0.01842, 0.00773)   // HABITAT
+            afpTasas(Afp.INTEGRA),
+            afpTasas(Afp.PRIMA),
+            afpTasas(Afp.PROFUTURO),
+            afpTasas(Afp.HABITAT)
         );
         return ResponseEntity.ok(config);
+    }
+
+    /**
+     * Mapea el enum de dominio {@link Afp} (fuente única de tasas SBS) al DTO.
+     * AfpTasas(jubilacion, seguroInvalidez, comision) ← (aporte 10%, prima seguro, comisión flujo).
+     */
+    private static ConfiguracionRemunerativaDto.AfpTasas afpTasas(Afp a) {
+        return new ConfiguracionRemunerativaDto.AfpTasas(
+                a.prima().doubleValue(),
+                a.seguro().doubleValue(),
+                a.comision().doubleValue());
     }
 }
