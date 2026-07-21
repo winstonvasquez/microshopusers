@@ -1,5 +1,6 @@
 package com.microshop.users.config.security;
 
+import com.microshop.users.shared.constants.AppConstants;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -45,7 +46,7 @@ public class TenantAccessAspect {
             throw new AccessDeniedException("Sin autenticación — no se puede validar tenant");
         }
 
-        if (annotation.allowSuperAdmin() && hasRole(auth, "ROLE_SUPERADMIN")) {
+        if (annotation.allowSuperAdmin() && hasRole(auth, AppConstants.Seguridad.ROLE_SUPERADMIN)) {
             log.debug("Bypass tenant check para SUPERADMIN en {}.{}",
                     method.getDeclaringClass().getSimpleName(), method.getName());
             return;

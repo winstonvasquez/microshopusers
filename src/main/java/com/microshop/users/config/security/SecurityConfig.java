@@ -1,5 +1,6 @@
 package com.microshop.users.config.security;
 
+import com.microshop.users.shared.constants.AppConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,12 +47,12 @@ public class SecurityConfig {
                                                 // (tasas SUNAT: UIT, ONP, ESSALUD) y de empresas requieren ADMIN.
                                                 // El GET sigue público: lo consume la planilla s2s y el onboarding.
                                                 // Los matchers restrictivos van ANTES del permitAll (primer match gana).
-                                                .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole("ADMIN")
-                                                .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole("ADMIN")
-                                                .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole("ADMIN")
-                                                .requestMatchers(HttpMethod.POST, "/users/api/companies/**").hasAnyRole("ADMIN", "SUPERADMIN")
-                                                .requestMatchers(HttpMethod.PUT, "/users/api/companies/**").hasAnyRole("ADMIN", "SUPERADMIN")
-                                                .requestMatchers(HttpMethod.DELETE, "/users/api/companies/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                                                .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
+                                                .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
+                                                .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
+                                                .requestMatchers(HttpMethod.POST, "/users/api/companies/**").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
+                                                .requestMatchers(HttpMethod.PUT, "/users/api/companies/**").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
+                                                .requestMatchers(HttpMethod.DELETE, "/users/api/companies/**").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
                                                 .requestMatchers(
                                                                 "/users/api/auth/**",
                                                                 "/users/api/companies/**",
@@ -67,9 +68,9 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 // Tema de empresa: solo ADMIN puede modificar
                                                 .requestMatchers(HttpMethod.PUT, "/users/api/themes/company")
-                                                .hasRole("ADMIN")
+                                                .hasRole(AppConstants.Seguridad.ADMIN)
                                                 .requestMatchers("/users/api/chat/**").authenticated()
-                                                .requestMatchers("/users/api/admin/chat/**").hasAnyRole("ADMIN", "SOPORTE")
+                                                .requestMatchers("/users/api/admin/chat/**").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SOPORTE)
                                                 .anyRequest().authenticated())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

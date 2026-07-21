@@ -11,6 +11,7 @@ import com.microshop.users.application.dto.SocialLoginRequest;
 import com.microshop.users.application.dto.SupervisorAuthResponse;
 import com.microshop.users.application.query.SaasQueryService;
 import com.microshop.users.config.SecurityProperties;
+import com.microshop.users.shared.constants.AppConstants;
 
 import com.microshop.users.config.security.JwtService;
 import com.microshop.users.infrastructure.persistence.entity.SesionEntity;
@@ -234,7 +235,8 @@ public class AuthCommandService {
 
     /** Roles habilitados para autorizar operaciones sensibles del POS (descuentos, etc.). */
     private static final java.util.Set<String> ROLES_AUTORIZADORES =
-            java.util.Set.of("ADMIN", "GERENTE", "SUPERADMIN");
+            java.util.Set.of(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.GERENTE,
+                    AppConstants.Seguridad.SUPERADMIN);
 
     /**
      * Verifica el PIN de un supervisor para autorizar una operación sensible en el POS.

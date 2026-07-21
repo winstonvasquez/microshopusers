@@ -6,6 +6,7 @@ import com.microshop.users.application.query.SaasQueryService;
 import com.microshop.users.config.security.JwtService;
 import com.microshop.users.infrastructure.persistence.entity.*;
 import com.microshop.users.infrastructure.persistence.repository.*;
+import com.microshop.users.shared.constants.AppConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.User;
@@ -53,7 +54,7 @@ public class SaasOnboardingCommandService {
         company = companyRepository.save(company);
 
         // 3. Obtener rol ADMIN (debe existir del seed V3)
-        RolEntity rolAdmin = rolRepository.findByNombre("ADMIN")
+        RolEntity rolAdmin = rolRepository.findByNombre(AppConstants.Seguridad.ADMIN)
                 .orElseThrow(() -> new IllegalStateException("Rol ADMIN no encontrado. Ejecute las migraciones."));
 
         // 4. Crear PersonaEntity requerida por UsuarioEntity (NOT NULL)

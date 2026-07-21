@@ -2,6 +2,7 @@ package com.microshop.users.config;
 
 import com.microshop.users.infrastructure.persistence.entity.*;
 import com.microshop.users.infrastructure.persistence.repository.*;
+import com.microshop.users.shared.constants.AppConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -44,9 +45,9 @@ public class InitialUserConfig implements CommandLineRunner {
     }
 
     private RolEntity getOrCreateAdminRole() {
-        return rolRepository.findByNombre("ADMIN")
+        return rolRepository.findByNombre(AppConstants.Seguridad.ADMIN)
                 .orElseGet(() -> rolRepository.save(RolEntity.builder()
-                        .nombre("ADMIN")
+                        .nombre(AppConstants.Seguridad.ADMIN)
                         .descripcion("Administrator with full access")
                         .build()));
     }

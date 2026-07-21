@@ -5,6 +5,7 @@ import com.microshop.users.infrastructure.persistence.entity.ChatMensajeEntity;
 import com.microshop.users.infrastructure.persistence.repository.ChatConversacionRepository;
 import com.microshop.users.infrastructure.persistence.repository.ChatMensajeRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -93,8 +94,12 @@ public class ChatController {
 
         Long emisorId = resolverClienteId(principal.getUsername());
         // Determinar tipo de emisor según si el usuario es admin/soporte
+        // NOTA (pendiente, no tocado en esta ronda value-preserving): .contains() es un
+        // matching débil — matchearía cualquier authority que CONTENGA el literal, no
+        // igualdad exacta. Marcado por la auditoría; requiere fix de lógica en otra ronda.
         boolean esAdmin = principal.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().contains("ADMIN") || a.getAuthority().contains("SOPORTE"));
+                .anyMatch(a -> a.getAuthority().contains(AppConstants.Seguridad.ADMIN)
+                        || a.getAuthority().contains(AppConstants.Seguridad.SOPORTE));
         String emisorTipo = esAdmin ? "SOPORTE" : "CLIENTE";
 
         String contenido = body.get("contenido");
