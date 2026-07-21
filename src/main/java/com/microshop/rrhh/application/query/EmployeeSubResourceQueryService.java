@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.employee.*;
 import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.*;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -117,8 +118,8 @@ public class EmployeeSubResourceQueryService {
                 .moneda(s.getMoneda())
                 .motivo(s.getMotivo())
                 .porcentajeIncremento(s.getPorcentajeIncremento())
-                .aprobadoPorId(approver != null ? approver.getId() : null)
-                .aprobadoPorName(approver != null ? approver.getNombres() + " " + approver.getApellidos() : null)
+                .aprobadoPorId(AppUtils.idOrNull(approver, e -> e.getId()))
+                .aprobadoPorName(approver != null ? AppUtils.fullName(approver.getNombres(), approver.getApellidos()) : null)
                 .createdAt(s.getCreatedAt())
                 .build();
     }

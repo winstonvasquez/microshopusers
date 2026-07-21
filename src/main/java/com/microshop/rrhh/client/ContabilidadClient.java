@@ -1,6 +1,7 @@
 package com.microshop.rrhh.client;
 
 import com.microshop.rrhh.domain.model.Payroll;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -39,7 +40,7 @@ public class ContabilidadClient {
      * @return Mono vacío — se suscribe fire-and-forget en el caller
      */
     public Mono<Void> registrarAsientoPlanilla(Payroll payroll) {
-        BigDecimal totalIngresos = sum(payroll.getSueldoBase(),
+        BigDecimal totalIngresos = AppUtils.sum(payroll.getSueldoBase(),
                 payroll.getBonos(),
                 payroll.getMontoHorasExtras(),
                 payroll.getAsignacionFamiliar());
@@ -52,13 +53,13 @@ public class ContabilidadClient {
         body.put("payrollId",     payroll.getId());
         body.put("periodo",       payroll.getPeriodo());
         body.put("fecha",         LocalDate.now().toString());
-        body.put("empleadoId",    payroll.getEmployee() != null ? payroll.getEmployee().getId() : null);
+        body.put("empleadoId",    AppUtils.idOrNull(payroll.getEmployee(), e -> e.getId()));
         body.put("totalIngresos", totalIngresos);
-        body.put("essalud",       nvl(payroll.getEssalud()));
-        body.put("neto",          nvl(payroll.getNeto()));
-        body.put("rentaQuinta",   nvl(payroll.getRentaQuinta()));
-        body.put("descuentos",    nvl(payroll.getDescuentos()));
-        body.put("aporteAfpOnp",  nvl(payroll.getMontoAfpOnp()));
+        body.put("essalud",       AppUtils.zeroIfNull(payroll.getEssalud()));
+        body.put("neto",          AppUtils.zeroIfNull(payroll.getNeto()));
+        body.put("rentaQuinta",   AppUtils.zeroIfNull(payroll.getRentaQuinta()));
+        body.put("descuentos",    AppUtils.zeroIfNull(payroll.getDescuentos()));
+        body.put("aporteAfpOnp",  AppUtils.zeroIfNull(payroll.getMontoAfpOnp()));
 
         return webClient.post()
                 .uri("/finance/api/v1/contabilidad/automatico/planilla")
@@ -72,17 +73,5 @@ public class ContabilidadClient {
                         "Contabilidad no respondió al asiento de planilla payrollId={}: {} " +
                         "(best-effort — sin outbox en users; reintento manual pendiente)",
                         payroll.getId(), e.getMessage()));
-    }
-
-    private static BigDecimal sum(BigDecimal... values) {
-        BigDecimal total = BigDecimal.ZERO;
-        for (BigDecimal v : values) {
-            total = total.add(v != null ? v : BigDecimal.ZERO);
-        }
-        return total;
-    }
-
-    private static BigDecimal nvl(BigDecimal v) {
-        return v != null ? v : BigDecimal.ZERO;
     }
 }

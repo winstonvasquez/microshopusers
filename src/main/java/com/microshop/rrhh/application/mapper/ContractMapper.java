@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.dto.contract.ContractResponseDto;
 import com.microshop.rrhh.domain.model.Contract;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.users.shared.constants.AppConstants;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -49,8 +50,8 @@ public class ContractMapper {
         return ContractResponseDto.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenantId())
-                .employeeId(emp != null ? emp.getId() : null)
-                .employeeName(emp != null ? emp.getNombres() + " " + emp.getApellidos() : null)
+                .employeeId(AppUtils.idOrNull(emp, e -> e.getId()))
+                .employeeName(emp != null ? AppUtils.fullName(emp.getNombres(), emp.getApellidos()) : null)
                 .tipoContrato(entity.getTipoContrato())
                 .fechaInicio(entity.getFechaInicio())
                 .fechaFin(entity.getFechaFin())

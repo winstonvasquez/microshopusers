@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.attendance.AttendanceRequestDto;
 import com.microshop.rrhh.application.dto.attendance.AttendanceResponseDto;
 import com.microshop.rrhh.domain.model.Attendance;
 import com.microshop.rrhh.domain.model.Employee;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -29,8 +30,8 @@ public class AttendanceMapper {
         return AttendanceResponseDto.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenantId())
-                .employeeId(emp != null ? emp.getId() : null)
-                .employeeName(emp != null ? emp.getNombres() + " " + emp.getApellidos() : null)
+                .employeeId(AppUtils.idOrNull(emp, e -> e.getId()))
+                .employeeName(emp != null ? AppUtils.fullName(emp.getNombres(), emp.getApellidos()) : null)
                 .fecha(entity.getFecha())
                 .horaEntrada(entity.getHoraEntrada())
                 .horaSalida(entity.getHoraSalida())

@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.vacation.VacationRequestDto;
 import com.microshop.rrhh.application.dto.vacation.VacationResponseDto;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.domain.model.VacationRequest;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,13 +26,13 @@ public class VacationMapper {
         return VacationResponseDto.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenantId())
-                .employeeId(entity.getEmployee() != null ? entity.getEmployee().getId() : null)
+                .employeeId(AppUtils.idOrNull(entity.getEmployee(), e -> e.getId()))
                 .fechaInicio(entity.getFechaInicio())
                 .fechaFin(entity.getFechaFin())
                 .dias(entity.getDias())
                 .estado(entity.getEstado())
                 .motivo(entity.getMotivo())
-                .aprobadoPor(entity.getAprobadoPor() != null ? entity.getAprobadoPor().getId() : null)
+                .aprobadoPor(AppUtils.idOrNull(entity.getAprobadoPor(), e -> e.getId()))
                 .fechaAprobacion(entity.getFechaAprobacion())
                 .comentariosAprobacion(entity.getComentariosAprobacion())
                 .createdAt(entity.getCreatedAt() != null ? entity.getCreatedAt().toLocalDate() : null)

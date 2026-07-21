@@ -80,10 +80,10 @@ public class AttendanceQueryService {
                             .filter(a -> a.getTipoRegistro() == Attendance.AttendanceType.PERMISO).count();
 
                     BigDecimal totalHoras = records.stream()
-                            .map(a -> a.getHorasTrabajadas() != null ? a.getHorasTrabajadas() : BigDecimal.ZERO)
+                            .map(a -> AppUtils.zeroIfNull(a.getHorasTrabajadas()))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     BigDecimal totalExtras = records.stream()
-                            .map(a -> a.getHorasExtras() != null ? a.getHorasExtras() : BigDecimal.ZERO)
+                            .map(a -> AppUtils.zeroIfNull(a.getHorasExtras()))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                     return AttendanceSummaryDto.builder()

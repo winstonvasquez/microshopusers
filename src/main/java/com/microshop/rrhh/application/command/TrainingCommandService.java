@@ -14,6 +14,7 @@ import com.microshop.rrhh.infrastructure.persistence.repository.TrainingReposito
 import com.microshop.users.shared.exception.BusinessException;
 import com.microshop.users.shared.exception.ConflictException;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.AppUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -119,7 +120,7 @@ public class TrainingCommandService {
 
         TrainingParticipation participation = participationMapper.toEntity(request, tenantId);
         TrainingParticipation saved = participationRepository.save(participation);
-        String empName = employee.getNombres() + " " + employee.getApellidos();
+        String empName = AppUtils.fullName(employee.getNombres(), employee.getApellidos());
         log.info("Participante inscrito: emp={} training={} - Tenant: {}", request.employeeId(), request.trainingId(), tenantId);
         return participationMapper.toDto(saved, null, empName);
     }
@@ -161,7 +162,7 @@ public class TrainingCommandService {
 
     private String resolveEmployeeName(Long tenantId, Long employeeId) {
         return employeeRepository.findByIdAndTenantId(employeeId, tenantId)
-                .map(e -> e.getNombres() + " " + e.getApellidos())
+                .map(e -> AppUtils.fullName(e.getNombres(), e.getApellidos()))
                 .orElse(null);
     }
 

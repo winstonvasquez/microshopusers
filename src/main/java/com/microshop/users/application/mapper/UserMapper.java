@@ -4,6 +4,7 @@ import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.PersonaEntity;
 import com.microshop.users.infrastructure.persistence.entity.UsuarioEntity;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -20,7 +21,7 @@ public class UserMapper {
 
         var persona = usuario.getPersona();
         var nombreCompleto = persona != null
-                ? persona.getNombres() + " " + persona.getApellidos()
+                ? AppUtils.fullName(persona.getNombres(), persona.getApellidos())
                 : "";
 
         return new UserResponseDto(

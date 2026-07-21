@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import com.microshop.users.shared.util.AppUtils;
 import org.hibernate.annotations.Comment;
 import org.hibernate.envers.Audited;
 
@@ -164,13 +165,13 @@ public class Payroll {
     private void calculateNeto() {
         if (sueldoBase != null) {
             BigDecimal totalIngresos = sueldoBase
-                .add(bonos != null ? bonos : BigDecimal.ZERO)
-                .add(montoHorasExtras != null ? montoHorasExtras : BigDecimal.ZERO)
-                .add(asignacionFamiliar != null ? asignacionFamiliar : BigDecimal.ZERO);
-            
-            BigDecimal totalDescuentos = (descuentos != null ? descuentos : BigDecimal.ZERO)
-                .add(montoAfpOnp != null ? montoAfpOnp : BigDecimal.ZERO)
-                .add(rentaQuinta != null ? rentaQuinta : BigDecimal.ZERO);
+                .add(AppUtils.zeroIfNull(bonos))
+                .add(AppUtils.zeroIfNull(montoHorasExtras))
+                .add(AppUtils.zeroIfNull(asignacionFamiliar));
+
+            BigDecimal totalDescuentos = AppUtils.zeroIfNull(descuentos)
+                .add(AppUtils.zeroIfNull(montoAfpOnp))
+                .add(AppUtils.zeroIfNull(rentaQuinta));
             
             neto = totalIngresos.subtract(totalDescuentos);
         }

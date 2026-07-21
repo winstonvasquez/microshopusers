@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.department.DepartmentRequestDto;
 import com.microshop.rrhh.application.dto.department.DepartmentResponseDto;
 import com.microshop.rrhh.domain.model.Department;
 import com.microshop.rrhh.domain.model.Employee;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -49,9 +50,9 @@ public class DepartmentMapper {
                 .codigo(entity.getCodigo())
                 .nombre(entity.getNombre())
                 .descripcion(entity.getDescripcion())
-                .managerId(manager != null ? manager.getId() : null)
-                .managerName(manager != null ? manager.getNombres() + " " + manager.getApellidos() : null)
-                .parentId(parent != null ? parent.getId() : null)
+                .managerId(AppUtils.idOrNull(manager, e -> e.getId()))
+                .managerName(manager != null ? AppUtils.fullName(manager.getNombres(), manager.getApellidos()) : null)
+                .parentId(AppUtils.idOrNull(parent, d -> d.getId()))
                 .parentName(parent != null ? parent.getNombre() : null)
                 .activo(entity.getActivo())
                 .employeeCount(entity.getEmployees() != null ? entity.getEmployees().size() : 0)

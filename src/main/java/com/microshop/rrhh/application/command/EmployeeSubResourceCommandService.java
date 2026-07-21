@@ -6,6 +6,7 @@ import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.*;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.AppUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -259,8 +260,8 @@ public class EmployeeSubResourceCommandService {
                 .moneda(s.getMoneda())
                 .motivo(s.getMotivo())
                 .porcentajeIncremento(s.getPorcentajeIncremento())
-                .aprobadoPorId(approver != null ? approver.getId() : null)
-                .aprobadoPorName(approver != null ? approver.getNombres() + " " + approver.getApellidos() : null)
+                .aprobadoPorId(AppUtils.idOrNull(approver, e -> e.getId()))
+                .aprobadoPorName(approver != null ? AppUtils.fullName(approver.getNombres(), approver.getApellidos()) : null)
                 .createdAt(s.getCreatedAt())
                 .build();
     }

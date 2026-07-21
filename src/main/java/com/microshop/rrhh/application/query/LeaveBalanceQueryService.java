@@ -5,6 +5,7 @@ import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.domain.model.LeaveBalance;
 import com.microshop.rrhh.infrastructure.persistence.repository.LeaveBalanceRepository;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +46,7 @@ public class LeaveBalanceQueryService {
         return LeaveBalanceDto.builder()
                 .id(lb.getId())
                 .employeeId(emp.getId())
-                .employeeName(emp.getNombres() + " " + emp.getApellidos())
+                .employeeName(AppUtils.fullName(emp.getNombres(), emp.getApellidos()))
                 .anio(lb.getAnio())
                 .diasGanados(lb.getDiasGanados())
                 .diasUsados(lb.getDiasUsados())

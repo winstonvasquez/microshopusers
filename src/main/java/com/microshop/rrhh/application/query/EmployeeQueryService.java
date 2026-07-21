@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.mapper.EmployeeMapper;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeRepository;
 import com.microshop.rrhh.config.security.TenantContext;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Page;
@@ -58,7 +59,7 @@ public class EmployeeQueryService {
     /** Listado paginado server-side con búsqueda + filtro de estado opcionales. */
     public Page<EmployeeResponseDto> getEmployeesPaged(String search, Employee.EmployeeStatus estado, Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
-        String term = (search == null || search.isBlank()) ? null : search.trim();
+        String term = AppUtils.searchTermOrNull(search);
         return employeeRepository.searchPaged(tenantId, term, estado, pageable)
                 .map(employeeMapper::toDto);
     }

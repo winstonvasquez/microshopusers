@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.dto.position.PositionRequestDto;
 import com.microshop.rrhh.application.dto.position.PositionResponseDto;
 import com.microshop.rrhh.domain.model.Department;
 import com.microshop.rrhh.domain.model.Position;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -42,7 +43,7 @@ public class PositionMapper {
                 .codigo(entity.getCodigo())
                 .nombre(entity.getNombre())
                 .descripcion(entity.getDescripcion())
-                .departmentId(dept != null ? dept.getId() : null)
+                .departmentId(AppUtils.idOrNull(dept, d -> d.getId()))
                 .departmentName(dept != null ? dept.getNombre() : null)
                 .nivel(entity.getNivel())
                 .salarioMinimo(entity.getSalarioMinimo())

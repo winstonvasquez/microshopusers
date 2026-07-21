@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.dto.employee.EmployeeResponseDto;
 import com.microshop.rrhh.domain.model.Department;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.domain.model.Position;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -103,12 +104,12 @@ public class EmployeeMapper {
                 .fechaIngreso(entity.getFechaIngreso())
                 .fechaSalida(entity.getFechaSalida())
                 .motivoSalida(entity.getMotivoSalida())
-                .departmentId(dept != null ? dept.getId() : null)
+                .departmentId(AppUtils.idOrNull(dept, d -> d.getId()))
                 .departmentName(dept != null ? dept.getNombre() : null)
-                .positionId(pos != null ? pos.getId() : null)
+                .positionId(AppUtils.idOrNull(pos, p -> p.getId()))
                 .positionName(pos != null ? pos.getNombre() : null)
-                .supervisorId(sup != null ? sup.getId() : null)
-                .supervisorName(sup != null ? sup.getNombres() + " " + sup.getApellidos() : null)
+                .supervisorId(AppUtils.idOrNull(sup, e -> e.getId()))
+                .supervisorName(sup != null ? AppUtils.fullName(sup.getNombres(), sup.getApellidos()) : null)
                 .cargo(entity.getCargo())
                 .area(entity.getArea())
                 .email(entity.getEmail())

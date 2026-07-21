@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.mapper.VacationMapper;
 import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.VacationRequest;
 import com.microshop.rrhh.infrastructure.persistence.repository.VacationRequestRepository;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +25,7 @@ public class VacationQueryService {
 
     public Page<VacationResponseDto> getVacationsPaged(String search, VacationRequest.VacationStatus estado, Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
-        String term = (search == null || search.isBlank()) ? null : search.trim();
+        String term = AppUtils.searchTermOrNull(search);
         return vacationRequestRepository.searchPaged(tenantId, term, estado, pageable).map(vacationMapper::toDto);
     }
 

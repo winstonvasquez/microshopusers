@@ -10,6 +10,7 @@ import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeReposito
 import com.microshop.rrhh.infrastructure.persistence.repository.TrainingParticipationRepository;
 import com.microshop.rrhh.infrastructure.persistence.repository.TrainingRepository;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +59,7 @@ public class TrainingQueryService {
         return participationRepository.findByTenantIdAndTrainingId(tenantId, trainingId).stream()
                 .map(p -> {
                     String empName = employeeRepository.findByIdAndTenantId(p.getEmployeeId(), tenantId)
-                            .map(e -> e.getNombres() + " " + e.getApellidos()).orElse(null);
+                            .map(e -> AppUtils.fullName(e.getNombres(), e.getApellidos())).orElse(null);
                     return participationMapper.toDto(p, trainingName, empName);
                 })
                 .toList();
@@ -71,7 +72,7 @@ public class TrainingQueryService {
                     String trainingName = trainingRepository.findByIdAndTenantId(p.getTrainingId(), tenantId)
                             .map(Training::getNombre).orElse(null);
                     String empName = employeeRepository.findByIdAndTenantId(p.getEmployeeId(), tenantId)
-                            .map(e -> e.getNombres() + " " + e.getApellidos()).orElse(null);
+                            .map(e -> AppUtils.fullName(e.getNombres(), e.getApellidos())).orElse(null);
                     return participationMapper.toDto(p, trainingName, empName);
                 })
                 .toList();

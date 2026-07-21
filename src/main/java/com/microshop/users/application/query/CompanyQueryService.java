@@ -11,6 +11,7 @@ import com.microshop.users.application.dto.CompanyResponseDto;
 import com.microshop.users.application.dto.CompanyUserDto;
 import com.microshop.users.application.dto.CompanySubscriptionDto;
 import com.microshop.users.application.mapper.CompanyMapper;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
@@ -39,7 +40,7 @@ public class CompanyQueryService {
     }
 
     public Page<CompanyResponseDto> findPaged(String search, Boolean active, Pageable pageable) {
-        String term = (search == null || search.isBlank()) ? null : search.trim();
+        String term = AppUtils.searchTermOrNull(search);
         return companyRepository.searchPaged(term, active, pageable);
     }
 

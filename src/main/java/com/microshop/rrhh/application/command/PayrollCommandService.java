@@ -16,6 +16,7 @@ import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.BusinessException;
 import com.microshop.users.shared.exception.ConflictException;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.AppUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -127,10 +128,9 @@ public class PayrollCommandService {
         // Sprint 7.2 — Disparar pago en tesorería (fire-and-forget no bloquea aprobación
         // si tesorería está caída; reintento manual via markAsPaid).
         try {
-            BigDecimal monto = updated.getNeto() != null
-                    ? updated.getNeto() : BigDecimal.ZERO;
+            BigDecimal monto = AppUtils.zeroIfNull(updated.getNeto());
             String periodo = updated.getPeriodo();
-            Long employeeId = updated.getEmployee() != null ? updated.getEmployee().getId() : null;
+            Long employeeId = AppUtils.idOrNull(updated.getEmployee(), e -> e.getId());
 
             if (employeeId != null && monto.signum() > 0) {
                 tesoreriaClient.createPayrollPayment(tenantId, employeeId, periodo, monto)
@@ -222,7 +222,7 @@ public class PayrollCommandService {
                 emp.getTenantId(), emp.getId(), start, end);
 
         BigDecimal horasExtras = monthAttendance.stream()
-                .map(a -> a.getHorasExtras() != null ? a.getHorasExtras() : BigDecimal.ZERO)
+                .map(a -> AppUtils.zeroIfNull(a.getHorasExtras()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         int diasTrabajados = (int) monthAttendance.stream()

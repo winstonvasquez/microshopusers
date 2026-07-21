@@ -6,6 +6,7 @@ import com.microshop.rrhh.application.dto.payroll.PayrollResponseDto;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.domain.model.Payroll;
 import com.microshop.rrhh.domain.model.PayrollDetail;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -20,8 +21,8 @@ public class PayrollMapper {
                 .employee(employee)
                 .periodo(dto.periodo())
                 .sueldoBase(dto.sueldoBase())
-                .bonos(dto.bonos() != null ? dto.bonos() : BigDecimal.ZERO)
-                .descuentos(dto.descuentos() != null ? dto.descuentos() : BigDecimal.ZERO)
+                .bonos(AppUtils.zeroIfNull(dto.bonos()))
+                .descuentos(AppUtils.zeroIfNull(dto.descuentos()))
                 .estado(Payroll.PayrollStatus.GENERADO)
                 .build();
     }
@@ -35,8 +36,8 @@ public class PayrollMapper {
         return PayrollResponseDto.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenantId())
-                .employeeId(emp != null ? emp.getId() : null)
-                .employeeName(emp != null ? emp.getNombres() + " " + emp.getApellidos() : null)
+                .employeeId(AppUtils.idOrNull(emp, e -> e.getId()))
+                .employeeName(emp != null ? AppUtils.fullName(emp.getNombres(), emp.getApellidos()) : null)
                 .periodo(entity.getPeriodo())
                 .sueldoBase(entity.getSueldoBase())
                 .bonos(entity.getBonos())

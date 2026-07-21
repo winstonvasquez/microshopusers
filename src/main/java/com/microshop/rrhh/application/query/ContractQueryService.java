@@ -6,6 +6,7 @@ import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.Contract;
 import com.microshop.rrhh.infrastructure.persistence.repository.ContractRepository;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Page;
@@ -30,7 +31,7 @@ public class ContractQueryService {
     public Page<ContractResponseDto> getContractsPaged(String search, Contract.ContractStatus estado,
                                                        Contract.ContractType tipo, Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
-        String term = (search == null || search.isBlank()) ? null : search.trim();
+        String term = AppUtils.searchTermOrNull(search);
         return contractRepository.searchPaged(tenantId, term, estado, tipo, pageable).map(contractMapper::toDto);
     }
 

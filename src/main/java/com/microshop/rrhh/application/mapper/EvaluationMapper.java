@@ -2,6 +2,7 @@ package com.microshop.rrhh.application.mapper;
 
 import com.microshop.rrhh.application.dto.evaluation.*;
 import com.microshop.rrhh.domain.model.*;
+import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -48,12 +49,12 @@ public class EvaluationMapper {
         String evaluadorName = null;
         try {
             if (entity.getEmployee() != null) {
-                employeeName = entity.getEmployee().getNombres() + " " + entity.getEmployee().getApellidos();
+                employeeName = AppUtils.fullName(entity.getEmployee().getNombres(), entity.getEmployee().getApellidos());
             }
         } catch (Exception ignored) {}
         try {
             if (entity.getEvaluador() != null) {
-                evaluadorName = entity.getEvaluador().getNombres() + " " + entity.getEvaluador().getApellidos();
+                evaluadorName = AppUtils.fullName(entity.getEvaluador().getNombres(), entity.getEvaluador().getApellidos());
             }
         } catch (Exception ignored) {}
 
@@ -67,10 +68,10 @@ public class EvaluationMapper {
         return EvaluationResponseDto.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenantId())
-                .employeeId(entity.getEmployee() != null ? entity.getEmployee().getId() : null)
+                .employeeId(AppUtils.idOrNull(entity.getEmployee(), e -> e.getId()))
                 .employeeName(employeeName)
                 .periodo(entity.getPeriodo())
-                .evaluadorId(entity.getEvaluador() != null ? entity.getEvaluador().getId() : null)
+                .evaluadorId(AppUtils.idOrNull(entity.getEvaluador(), e -> e.getId()))
                 .evaluadorName(evaluadorName)
                 .tipoEvaluacion(entity.getTipoEvaluacion() != null ? entity.getTipoEvaluacion().name() : null)
                 .puntaje(entity.getPuntaje())
@@ -99,7 +100,7 @@ public class EvaluationMapper {
 
         return EvaluationDetailResponseDto.builder()
                 .id(detail.getId())
-                .criteriaId(detail.getCriteria() != null ? detail.getCriteria().getId() : null)
+                .criteriaId(AppUtils.idOrNull(detail.getCriteria(), c -> c.getId()))
                 .criteriaName(criteriaName)
                 .pesoPorcentaje(peso)
                 .puntaje(detail.getPuntaje())
@@ -115,7 +116,7 @@ public class EvaluationMapper {
                 .nombre(dto.nombre())
                 .descripcion(dto.descripcion())
                 .pesoPorcentaje(dto.pesoPorcentaje())
-                .puntajeMinimo(dto.puntajeMinimo() != null ? dto.puntajeMinimo() : BigDecimal.ZERO)
+                .puntajeMinimo(AppUtils.zeroIfNull(dto.puntajeMinimo()))
                 .puntajeMaximo(dto.puntajeMaximo() != null ? dto.puntajeMaximo() : new BigDecimal("100"))
                 .build();
     }
@@ -146,7 +147,7 @@ public class EvaluationMapper {
                 .fechaInicio(dto.fechaInicio())
                 .fechaFin(dto.fechaFin())
                 .prioridad(dto.prioridad() != null ? Goal.Priority.valueOf(dto.prioridad()) : Goal.Priority.MEDIA)
-                .porcentajeAvance(dto.porcentajeAvance() != null ? dto.porcentajeAvance() : BigDecimal.ZERO)
+                .porcentajeAvance(AppUtils.zeroIfNull(dto.porcentajeAvance()))
                 .asignadoPor(asignadoPor)
                 .build();
     }
@@ -156,19 +157,19 @@ public class EvaluationMapper {
         String asignadoPorName = null;
         try {
             if (entity.getEmployee() != null) {
-                employeeName = entity.getEmployee().getNombres() + " " + entity.getEmployee().getApellidos();
+                employeeName = AppUtils.fullName(entity.getEmployee().getNombres(), entity.getEmployee().getApellidos());
             }
         } catch (Exception ignored) {}
         try {
             if (entity.getAsignadoPor() != null) {
-                asignadoPorName = entity.getAsignadoPor().getNombres() + " " + entity.getAsignadoPor().getApellidos();
+                asignadoPorName = AppUtils.fullName(entity.getAsignadoPor().getNombres(), entity.getAsignadoPor().getApellidos());
             }
         } catch (Exception ignored) {}
 
         return GoalResponseDto.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenantId())
-                .employeeId(entity.getEmployee() != null ? entity.getEmployee().getId() : null)
+                .employeeId(AppUtils.idOrNull(entity.getEmployee(), e -> e.getId()))
                 .employeeName(employeeName)
                 .titulo(entity.getTitulo())
                 .descripcion(entity.getDescripcion())
@@ -177,7 +178,7 @@ public class EvaluationMapper {
                 .estado(entity.getEstado() != null ? entity.getEstado().name() : null)
                 .porcentajeAvance(entity.getPorcentajeAvance())
                 .prioridad(entity.getPrioridad() != null ? entity.getPrioridad().name() : null)
-                .asignadoPorId(entity.getAsignadoPor() != null ? entity.getAsignadoPor().getId() : null)
+                .asignadoPorId(AppUtils.idOrNull(entity.getAsignadoPor(), e -> e.getId()))
                 .asignadoPorName(asignadoPorName)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
