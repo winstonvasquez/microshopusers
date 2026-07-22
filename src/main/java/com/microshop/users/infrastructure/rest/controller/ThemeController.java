@@ -6,8 +6,6 @@ import com.microshop.users.application.dto.ThemeResponseDto;
 import com.microshop.users.application.query.ErpParameterQueryService;
 import com.microshop.users.application.query.ThemePreferenceQueryService;
 import com.microshop.users.infrastructure.persistence.entity.ThemeSeasonalEntity;
-import com.microshop.users.infrastructure.persistence.repository.ErpParameterJpaRepository;
-import com.microshop.users.infrastructure.persistence.repository.ThemeSeasonalRepository;
 import com.microshop.users.shared.constants.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,7 +17,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -59,8 +56,6 @@ public class ThemeController {
     }
 
     private final ErpParameterQueryService    paramQueryService;
-    private final ErpParameterJpaRepository   erpParamRepository;
-    private final ThemeSeasonalRepository     themeSeasonalRepository;
     private final ThemePreferenceQueryService themeQueryService;
     private final ThemePreferenceService      themeCommandService;
 
@@ -89,8 +84,7 @@ public class ThemeController {
                     .orElse(false);
 
             if (seasonalEnabled) {
-                LocalDate today = LocalDate.now();
-                List<ThemeSeasonalEntity> active = themeSeasonalRepository.findActiveThemesForDate(today);
+                List<ThemeSeasonalEntity> active = themeQueryService.getActiveSeasonalThemes();
                 if (!active.isEmpty()) {
                     ThemeSeasonalEntity seasonal = active.get(0);
                     return ResponseEntity.ok(new ThemeResponseDto(
@@ -170,13 +164,10 @@ public class ThemeController {
 
         // Fallback: actualizar parámetro global (comportamiento original)
         String paramKey = paramKeyForModule(module);
-        var paramOpt = erpParamRepository.findByParamKeyAndTenantIdIsNull(paramKey);
-        if (paramOpt.isEmpty()) {
+        boolean updated = themeCommandService.saveGlobalThemeFallback(paramKey, themeKey);
+        if (!updated) {
             return ResponseEntity.<Void>notFound().build();
         }
-        var param = paramOpt.get();
-        param.setParamValue(themeKey.trim());
-        erpParamRepository.save(param);
         return ResponseEntity.<Void>ok().build();
     }
 
@@ -251,7 +242,7 @@ public class ThemeController {
     @Operation(summary = "Listar temas estacionales", description = "Requiere autenticación")
     public ResponseEntity<List<ThemeSeasonalEntity>> getSeasonalThemes() {
         return ResponseEntity.ok(
-                themeSeasonalRepository.findAllByActiveTrueOrderByStartDateAsc()
+                themeQueryService.getAllActiveSeasonalThemes()
         );
     }
 }

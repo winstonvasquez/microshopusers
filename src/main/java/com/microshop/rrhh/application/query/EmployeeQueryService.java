@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.mapper.EmployeeMapper;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeRepository;
 import com.microshop.rrhh.config.security.TenantContext;
+import com.microshop.users.shared.exception.NotFoundException;
 import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -72,5 +73,17 @@ public class EmployeeQueryService {
     public long countActiveEmployees() {
         Long tenantId = tenantContext.getCurrentTenantId();
         return employeeRepository.countByTenantIdAndEstado(tenantId, Employee.EmployeeStatus.ACTIVO);
+    }
+
+    /** Resuelve el ID del empleado vinculado al usuario autenticado actual (portal de autoservicio). */
+    public Long resolveCurrentEmployeeId() {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        Long userId = tenantContext.getCurrentUserId();
+        if (userId == null) {
+            throw new NotFoundException("Usuario no autenticado");
+        }
+        return employeeRepository.findByTenantIdAndUserId(tenantId, userId)
+                .map(e -> e.getId())
+                .orElseThrow(() -> new NotFoundException("No se encontró un empleado vinculado al usuario actual"));
     }
 }

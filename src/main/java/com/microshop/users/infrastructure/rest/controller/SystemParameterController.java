@@ -1,8 +1,8 @@
 package com.microshop.users.infrastructure.rest.controller;
 
+import com.microshop.users.application.command.ErpParameterCommandService;
 import com.microshop.users.application.dto.SystemParameterDto;
 import com.microshop.users.application.query.ErpParameterQueryService;
-import com.microshop.users.infrastructure.persistence.repository.ErpParameterJpaRepository;
 import com.microshop.users.shared.constants.ApiPaths;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -17,7 +17,7 @@ import java.util.List;
 public class SystemParameterController {
 
     private final ErpParameterQueryService parameterQueryService;
-    private final ErpParameterJpaRepository repository;
+    private final ErpParameterCommandService parameterCommandService;
 
     @GetMapping
     public ResponseEntity<List<SystemParameterDto>> getAllParameters() {
@@ -34,16 +34,11 @@ public class SystemParameterController {
     @PutMapping("/{key}")
     @CacheEvict(value = "erp-params", allEntries = true)
     public ResponseEntity<Void> updateParameter(@PathVariable String key, @RequestBody String value) {
-        var paramOpt = repository.findByParamKeyAndTenantIdIsNull(key);
-        if (paramOpt.isEmpty()) {
-            return ResponseEntity.<Void>notFound().build();
-        }
-        var param = paramOpt.get();
-        if (!Boolean.TRUE.equals(param.getEditable())) {
-            return ResponseEntity.<Void>status(403).build();
-        }
-        param.setParamValue(value.trim().replace("\"", ""));
-        repository.save(param);
-        return ResponseEntity.<Void>ok().build();
+        var result = parameterCommandService.updateParameter(key, value);
+        return switch (result) {
+            case NOT_FOUND -> ResponseEntity.<Void>notFound().build();
+            case FORBIDDEN -> ResponseEntity.<Void>status(403).build();
+            case OK -> ResponseEntity.<Void>ok().build();
+        };
     }
 }

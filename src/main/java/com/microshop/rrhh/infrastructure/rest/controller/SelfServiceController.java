@@ -10,10 +10,7 @@ import com.microshop.rrhh.application.dto.vacation.VacationRequestDto;
 import com.microshop.rrhh.application.dto.vacation.VacationResponseDto;
 import com.microshop.rrhh.application.query.*;
 import com.microshop.rrhh.application.command.VacationCommandService;
-import com.microshop.rrhh.config.security.TenantContext;
-import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeRepository;
 import com.microshop.rrhh.shared.constants.ApiPaths;
-import com.microshop.users.shared.exception.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +35,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearer-key")
 public class SelfServiceController {
 
-    private final EmployeeRepository employeeRepository;
     private final EmployeeQueryService employeeQueryService;
     private final PayrollQueryService payrollQueryService;
     private final VacationQueryService vacationQueryService;
@@ -47,7 +43,6 @@ public class SelfServiceController {
     private final EvaluationQueryService evaluationQueryService;
     private final GoalQueryService goalQueryService;
     private final TrainingQueryService trainingQueryService;
-    private final TenantContext tenantContext;
 
     @GetMapping("/profile")
     @Operation(summary = "Obtener perfil del empleado actual")
@@ -107,13 +102,6 @@ public class SelfServiceController {
     }
 
     private Long resolveCurrentEmployeeId() {
-        Long tenantId = tenantContext.getCurrentTenantId();
-        Long userId = tenantContext.getCurrentUserId();
-        if (userId == null) {
-            throw new NotFoundException("Usuario no autenticado");
-        }
-        return employeeRepository.findByTenantIdAndUserId(tenantId, userId)
-                .map(e -> e.getId())
-                .orElseThrow(() -> new NotFoundException("No se encontró un empleado vinculado al usuario actual"));
+        return employeeQueryService.resolveCurrentEmployeeId();
     }
 }

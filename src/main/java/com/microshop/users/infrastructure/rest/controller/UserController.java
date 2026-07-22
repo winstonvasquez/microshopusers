@@ -7,9 +7,6 @@ import com.microshop.users.application.dto.ChangePasswordRequest;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
-import com.microshop.users.infrastructure.persistence.entity.PolicyRoleEntity;
-import com.microshop.users.infrastructure.persistence.repository.PolicyRoleRepository;
-import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import com.microshop.users.shared.constants.ApiPaths;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,8 +41,6 @@ public class UserController {
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
     private final AuthCommandService authCommandService;
-    private final UsuarioRepository usuarioRepository;
-    private final PolicyRoleRepository policyRoleRepository;
 
     @GetMapping
     @Operation(summary = "Listar usuarios paginados")
@@ -154,29 +149,6 @@ public class UserController {
     public ResponseEntity<Map<String, Object>> getMyPermissions(
             @AuthenticationPrincipal UserDetails userDetails) {
         log.info("GET /api/users/me/permissions - Consultando permisos para: {}", userDetails.getUsername());
-
-        var usuario = usuarioRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow();
-
-        var rol = usuario.getRol();
-        boolean isStandardCustomer = "CUSTOMER".equalsIgnoreCase(rol.getNombre())
-                || "USER".equalsIgnoreCase(rol.getNombre());
-
-        List<PolicyRoleEntity> policyRoles = policyRoleRepository.findByRolIdWithPolicy(rol.getId());
-
-        var permissions = policyRoles.stream()
-                .map(pr -> Map.of(
-                        "codigo", pr.getPolicy().getCodigo(),
-                        "nombre", pr.getPolicy().getNombre(),
-                        "efecto", pr.getPolicy().getEfecto()
-                ))
-                .toList();
-
-        return ResponseEntity.ok(Map.of(
-                "rolNombre", rol.getNombre(),
-                "rolDescripcion", rol.getDescripcion() != null ? rol.getDescripcion() : "",
-                "isStandardCustomer", isStandardCustomer,
-                "permissions", permissions
-        ));
+        return ResponseEntity.ok(userQueryService.getMyPermissions(userDetails.getUsername()));
     }
 }

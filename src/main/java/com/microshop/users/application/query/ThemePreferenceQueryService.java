@@ -1,13 +1,18 @@
 package com.microshop.users.application.query;
 
 import com.microshop.users.application.MessageHelper;
+import com.microshop.users.infrastructure.persistence.entity.ThemeSeasonalEntity;
 import com.microshop.users.infrastructure.persistence.repository.CompanyThemeConfigRepository;
+import com.microshop.users.infrastructure.persistence.repository.ThemeSeasonalRepository;
 import com.microshop.users.infrastructure.persistence.repository.UserThemePreferenceRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Consultas de preferencias de tema a nivel de empresa y de usuario individual.
@@ -19,6 +24,7 @@ public class ThemePreferenceQueryService {
 
     private final UserThemePreferenceRepository userThemeRepo;
     private final CompanyThemeConfigRepository  companyThemeRepo;
+    private final ThemeSeasonalRepository       themeSeasonalRepo;
     private final UsuarioRepository             usuarioRepo;
     private final MessageHelper                 msg;
 
@@ -44,5 +50,17 @@ public class ThemePreferenceQueryService {
         return usuarioRepo.findByUsername(username)
                 .map(u -> u.getId())
                 .orElseThrow(() -> new NotFoundException(msg.get("theme.user.not.found", username)));
+    }
+
+    /** Busca los temas estacionales activos para la fecha actual (aplica solo al módulo shop). */
+    @Transactional(readOnly = true)
+    public List<ThemeSeasonalEntity> getActiveSeasonalThemes() {
+        return themeSeasonalRepo.findActiveThemesForDate(LocalDate.now());
+    }
+
+    /** Lista todos los temas estacionales activos ordenados por fecha de inicio (UI de admin). */
+    @Transactional(readOnly = true)
+    public List<ThemeSeasonalEntity> getAllActiveSeasonalThemes() {
+        return themeSeasonalRepo.findAllByActiveTrueOrderByStartDateAsc();
     }
 }

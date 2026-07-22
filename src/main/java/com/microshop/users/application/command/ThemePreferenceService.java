@@ -3,6 +3,7 @@ package com.microshop.users.application.command;
 import com.microshop.users.infrastructure.persistence.entity.CompanyThemeConfigEntity;
 import com.microshop.users.infrastructure.persistence.entity.UserThemePreferenceEntity;
 import com.microshop.users.infrastructure.persistence.repository.CompanyThemeConfigRepository;
+import com.microshop.users.infrastructure.persistence.repository.ErpParameterJpaRepository;
 import com.microshop.users.infrastructure.persistence.repository.UserThemePreferenceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class ThemePreferenceService {
 
     private final UserThemePreferenceRepository userThemeRepo;
     private final CompanyThemeConfigRepository  companyThemeRepo;
+    private final ErpParameterJpaRepository     erpParamRepo;
 
     /** Guarda o actualiza la preferencia de tema del usuario. */
     @Transactional
@@ -48,5 +50,22 @@ public class ThemePreferenceService {
     @Transactional
     public void deleteUserPreference(Long userId, Long companyId, String module) {
         userThemeRepo.deleteByUserIdAndCompanyIdAndModule(userId, companyId, module);
+    }
+
+    /**
+     * Actualiza el fallback global de tema en erp_parameters (sin sesión activa).
+     *
+     * @return false si el parámetro no existe (el controller responde 404)
+     */
+    @Transactional
+    public boolean saveGlobalThemeFallback(String paramKey, String themeKey) {
+        var paramOpt = erpParamRepo.findByParamKeyAndTenantIdIsNull(paramKey);
+        if (paramOpt.isEmpty()) {
+            return false;
+        }
+        var param = paramOpt.get();
+        param.setParamValue(themeKey.trim());
+        erpParamRepo.save(param);
+        return true;
     }
 }
