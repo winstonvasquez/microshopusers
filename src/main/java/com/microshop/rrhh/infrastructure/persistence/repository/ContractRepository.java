@@ -39,6 +39,10 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
     long countByTenantIdAndEstado(Long tenantId, Contract.ContractStatus estado);
 
+    // Analytics dashboard (2026-07-22): equivalente COUNT de findExpiringBefore, sin traer entidades.
+    @Query("SELECT COUNT(c) FROM Contract c WHERE c.tenantId = :tenantId AND c.fechaFin IS NOT NULL AND c.fechaFin <= :fecha AND c.estado = 'ACTIVO'")
+    long countExpiringBefore(@Param("tenantId") Long tenantId, @Param("fecha") LocalDate fecha);
+
     // Page + solo ManyToOne (sin colecciones) → seguro con paginación.
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT c FROM Contract c WHERE c.tenantId = :tenantId " +

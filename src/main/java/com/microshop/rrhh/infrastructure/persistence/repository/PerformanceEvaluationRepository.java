@@ -3,8 +3,12 @@ package com.microshop.rrhh.infrastructure.persistence.repository;
 import com.microshop.rrhh.domain.model.PerformanceEvaluation;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,4 +33,15 @@ public interface PerformanceEvaluationRepository extends JpaRepository<Performan
 
     @EntityGraph(attributePaths = {"employee", "evaluador", "details", "details.criteria"})
     List<PerformanceEvaluation> findByTenantIdAndEvaluadorId(Long tenantId, Long evaluadorId);
+
+    // Analytics dashboard (2026-07-22): counts/avg agregados en SQL en lugar de traer todas las evaluaciones.
+    long countByTenantIdAndEstado(Long tenantId, PerformanceEvaluation.EvaluationStatus estado);
+
+    @Query("SELECT COUNT(e) FROM PerformanceEvaluation e WHERE e.tenantId = :tenantId AND e.estado IN :estados")
+    long countByTenantIdAndEstadoIn(@Param("tenantId") Long tenantId, @Param("estados") Collection<PerformanceEvaluation.EvaluationStatus> estados);
+
+    @Query("SELECT COALESCE(SUM(e.puntaje), 0) FROM PerformanceEvaluation e WHERE e.tenantId = :tenantId")
+    BigDecimal sumPuntajeByTenantId(@Param("tenantId") Long tenantId);
+
+    long countByTenantId(Long tenantId);
 }

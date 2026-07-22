@@ -21,7 +21,6 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -47,17 +46,10 @@ public class AnalyticsQueryService {
         long active = employeeRepository.countByTenantIdAndEstado(tenantId, Employee.EmployeeStatus.ACTIVO);
 
         // Headcount by department
-        List<Employee> employees = employeeRepository.findByTenantId(tenantId);
-        Map<String, Long> headcountByDept = employees.stream()
-                .filter(e -> e.getDepartment() != null)
-                .collect(Collectors.groupingBy(
-                        e -> {
-                            try { return e.getDepartment().getNombre(); }
-                            catch (Exception ex) { return "Sin departamento"; }
-                        },
-                        LinkedHashMap::new,
-                        Collectors.counting()
-                ));
+        Map<String, Long> headcountByDept = new LinkedHashMap<>();
+        for (EmployeeRepository.DepartmentHeadcount row : employeeRepository.countByDepartment(tenantId)) {
+            headcountByDept.put(row.getNombre(), row.getTotal());
+        }
 
         // Attendance today
         long todayAttendance = attendanceRepository.countByTenantIdAndFecha(tenantId, LocalDate.now());
@@ -67,51 +59,36 @@ public class AnalyticsQueryService {
                 : BigDecimal.ZERO;
 
         // Payroll
-        List<Payroll> payrolls = payrollRepository.findByTenantId(tenantId);
-        BigDecimal totalPayroll = payrolls.stream()
-                .filter(p -> p.getEstado() == Payroll.PayrollStatus.PAGADO)
-                .map(Payroll::getSueldoBase)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalPayroll = payrollRepository.sumSueldoBaseByTenantIdAndEstado(tenantId, Payroll.PayrollStatus.PAGADO);
         BigDecimal avgSalary = active > 0
                 ? totalPayroll.divide(BigDecimal.valueOf(active), 2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
         // Contracts
-        long activeContracts = contractRepository.findByTenantIdAndEstado(tenantId, Contract.ContractStatus.ACTIVO).size();
+        long activeContracts = contractRepository.countByTenantIdAndEstado(tenantId, Contract.ContractStatus.ACTIVO);
         LocalDate in30Days = LocalDate.now().plusDays(AppConstants.Negocio.DIAS_ALERTA_VENCIMIENTO_CONTRATO);
-        long expiring = contractRepository.findByTenantIdAndEstado(tenantId, Contract.ContractStatus.ACTIVO).stream()
-                .filter(c -> c.getFechaFin() != null && c.getFechaFin().isBefore(in30Days))
-                .count();
+        long expiring = contractRepository.countExpiringBefore(tenantId, in30Days);
 
         // Training
         long activeTrainings = trainingRepository.countByTenantIdAndEstado(tenantId, Training.TrainingStatus.EN_CURSO);
         long completedTrainings = trainingRepository.countByTenantIdAndEstado(tenantId, Training.TrainingStatus.COMPLETADO);
-        List<Training> allTrainings = trainingRepository.findByTenantIdAndEstado(tenantId, Training.TrainingStatus.COMPLETADO);
-        long trainingHours = allTrainings.stream()
-                .mapToLong(t -> t.getDuracionHoras() != null ? t.getDuracionHoras() : 0)
-                .sum();
+        long trainingHours = trainingRepository.sumDuracionHorasByTenantIdAndEstado(tenantId, Training.TrainingStatus.COMPLETADO);
 
         // Evaluations
-        List<PerformanceEvaluation> evals = evaluationRepository.findByTenantId(tenantId);
-        long pendingEvals = evals.stream()
-                .filter(e -> e.getEstado() == PerformanceEvaluation.EvaluationStatus.BORRADOR).count();
-        long completedEvals = evals.stream()
-                .filter(e -> e.getEstado() == PerformanceEvaluation.EvaluationStatus.COMPLETADA ||
-                             e.getEstado() == PerformanceEvaluation.EvaluationStatus.APROBADA).count();
-        BigDecimal avgScore = evals.isEmpty() ? BigDecimal.ZERO
-                : evals.stream().map(PerformanceEvaluation::getPuntaje)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add)
-                    .divide(BigDecimal.valueOf(evals.size()), 1, RoundingMode.HALF_UP);
+        long pendingEvals = evaluationRepository.countByTenantIdAndEstado(tenantId, PerformanceEvaluation.EvaluationStatus.BORRADOR);
+        long completedEvals = evaluationRepository.countByTenantIdAndEstadoIn(tenantId,
+                List.of(PerformanceEvaluation.EvaluationStatus.COMPLETADA, PerformanceEvaluation.EvaluationStatus.APROBADA));
+        long totalEvals = evaluationRepository.countByTenantId(tenantId);
+        BigDecimal avgScore = totalEvals == 0 ? BigDecimal.ZERO
+                : evaluationRepository.sumPuntajeByTenantId(tenantId)
+                    .divide(BigDecimal.valueOf(totalEvals), 1, RoundingMode.HALF_UP);
 
         // Vacations
         long pendingVacations = vacationRepository.countByTenantIdAndEstado(tenantId, VacationRequest.VacationStatus.SOLICITADO);
 
         // Goals
-        List<Goal> goals = goalRepository.findByTenantId(tenantId);
-        long activeGoals = goals.stream()
-                .filter(g -> g.getEstado() == Goal.GoalStatus.EN_PROGRESO).count();
-        long completedGoals = goals.stream()
-                .filter(g -> g.getEstado() == Goal.GoalStatus.COMPLETADO).count();
+        long activeGoals = goalRepository.countByTenantIdAndEstado(tenantId, Goal.GoalStatus.EN_PROGRESO);
+        long completedGoals = goalRepository.countByTenantIdAndEstado(tenantId, Goal.GoalStatus.COMPLETADO);
 
         return HrAnalyticsDto.builder()
                 .totalEmployees(total)

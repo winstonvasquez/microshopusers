@@ -24,4 +24,7 @@ public interface GoalRepository extends JpaRepository<Goal, Long> {
     List<Goal> findByTenantIdAndEstado(Long tenantId, Goal.GoalStatus estado);
 
     List<Goal> findByTenantIdAndEmployeeIdAndEstado(Long tenantId, Long employeeId, Goal.GoalStatus estado);
+
+    // Analytics dashboard (2026-07-22): count agregado en SQL en lugar de traer todas las metas.
+    long countByTenantIdAndEstado(Long tenantId, Goal.GoalStatus estado);
 }

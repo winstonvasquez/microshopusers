@@ -54,4 +54,15 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     long countByTenantIdAndEstado(Long tenantId, Employee.EmployeeStatus estado);
 
     Optional<Employee> findByTenantIdAndUserId(Long tenantId, Long userId);
+
+    // Analytics dashboard (2026-07-22): agregación SQL en lugar de traer todos los empleados a memoria.
+    @Query("SELECT e.department.nombre AS nombre, COUNT(e) AS total FROM Employee e " +
+           "WHERE e.tenantId = :tenantId AND e.department IS NOT NULL " +
+           "GROUP BY e.department.nombre")
+    List<DepartmentHeadcount> countByDepartment(@Param("tenantId") Long tenantId);
+
+    interface DepartmentHeadcount {
+        String getNombre();
+        Long getTotal();
+    }
 }
