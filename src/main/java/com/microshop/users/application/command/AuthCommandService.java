@@ -29,11 +29,16 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import io.netty.channel.ChannelOption;
+import reactor.netty.http.client.HttpClient;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -352,12 +357,17 @@ public class AuthCommandService {
     private LoginResponse verifyFacebookToken(String accessToken) {
         try {
             String url = "https://graph.facebook.com/me?fields=id,name,email&access_token=" + accessToken;
+            HttpClient httpClient = HttpClient.create()
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 2_000);
             @SuppressWarnings("unchecked")
-            Map<String, Object> response = WebClient.create()
+            Map<String, Object> response = WebClient.builder()
+                    .clientConnector(new ReactorClientHttpConnector(httpClient))
+                    .build()
                     .get()
                     .uri(url)
                     .retrieve()
                     .bodyToMono(Map.class)
+                    .timeout(Duration.ofSeconds(3))
                     .block();
 
             if (response != null && response.containsKey("email")) {
