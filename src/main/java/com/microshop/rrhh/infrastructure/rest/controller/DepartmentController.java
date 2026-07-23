@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.dto.department.DepartmentRequestDto;
 import com.microshop.rrhh.application.dto.department.DepartmentResponseDto;
 import com.microshop.rrhh.application.query.DepartmentQueryService;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,8 +33,8 @@ public class DepartmentController {
 
     @GetMapping("/paged")
     public ResponseEntity<Page<DepartmentResponseDto>> getDepartmentsPaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean activo) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());

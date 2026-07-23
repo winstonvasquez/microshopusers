@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.dto.position.PositionRequestDto;
 import com.microshop.rrhh.application.dto.position.PositionResponseDto;
 import com.microshop.rrhh.application.query.PositionQueryService;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,8 +33,8 @@ public class PositionController {
 
     @GetMapping("/paged")
     public ResponseEntity<Page<PositionResponseDto>> getPositionsPaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long departmentId) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());

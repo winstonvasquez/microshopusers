@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
@@ -236,10 +235,10 @@ public class PayrollCommandService {
                 .count();
 
         // Overtime: 25% surcharge for first 2h, 35% after (DL 854 art. 10)
-        BigDecimal tarifaHora = sueldoBase.divide(AppConstants.Negocio.HORAS_MES_LEGAL, 4, RoundingMode.HALF_UP);
+        BigDecimal tarifaHora = sueldoBase.divide(AppConstants.Negocio.HORAS_MES_LEGAL, AppConstants.Money.ESCALA_RATIO, AppConstants.Money.REDONDEO);
         BigDecimal montoHorasExtras = horasExtras.multiply(tarifaHora)
                 .multiply(AppConstants.Negocio.RECARGO_HORA_EXTRA)
-                .setScale(2, RoundingMode.HALF_UP);
+                .setScale(AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
 
         // 4. Base computable
         BigDecimal baseComputable = sueldoBase.add(asigFamiliar).add(montoHorasExtras);
@@ -252,13 +251,13 @@ public class PayrollCommandService {
             String paramKey = "AFP_RATE_" + afpNombre;
             String defaultRate = defaultAfpRate(afpNombre);
             BigDecimal afpRate = usersParameterClient.getDecimal(paramKey, defaultRate);
-            montoAfpOnp = baseComputable.multiply(afpRate).setScale(2, RoundingMode.HALF_UP);
+            montoAfpOnp = baseComputable.multiply(afpRate).setScale(AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
         } else {
-            montoAfpOnp = baseComputable.multiply(tasaOnp).setScale(2, RoundingMode.HALF_UP);
+            montoAfpOnp = baseComputable.multiply(tasaOnp).setScale(AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
         }
 
         // 6. EsSalud 9% (employer contribution)
-        BigDecimal essalud = baseComputable.multiply(tasaEssalud).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal essalud = baseComputable.multiply(tasaEssalud).setScale(AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
 
         // 7. Renta 5ta — complete 5 brackets (art. 53 LIR)
         BigDecimal proyAnual = sueldoBase.multiply(BigDecimal.valueOf(AppConstants.Negocio.MESES_PROYECCION_ANUAL)); // 12 + 2 grat
@@ -276,8 +275,8 @@ public class PayrollCommandService {
         if (month == 5 || month == 11) {
             BigDecimal grat = sueldoBase.add(asigFamiliar);
             cts = sueldoBase.add(asigFamiliar)
-                    .add(grat.divide(BigDecimal.valueOf(AppConstants.Negocio.DIVISOR_GRATIFICACION), 2, RoundingMode.HALF_UP))
-                    .divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP); // semestral
+                    .add(grat.divide(BigDecimal.valueOf(AppConstants.Negocio.DIVISOR_GRATIFICACION), AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO))
+                    .divide(new BigDecimal("2"), AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO); // semestral
         }
 
         // Build payroll with details
@@ -362,7 +361,7 @@ public class PayrollCommandService {
             impuesto = impuesto.add(exceso.multiply(rates[4]));
         }
 
-        return impuesto.divide(BigDecimal.valueOf(AppConstants.Negocio.MESES_ANIO), 2, RoundingMode.HALF_UP);
+        return impuesto.divide(BigDecimal.valueOf(AppConstants.Negocio.MESES_ANIO), AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
     }
 
     private void addDetail(Payroll payroll, String concepto, PayrollDetail.ConceptType tipo,

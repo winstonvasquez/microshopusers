@@ -61,7 +61,7 @@ public class AnalyticsQueryService {
         // Payroll
         BigDecimal totalPayroll = payrollRepository.sumSueldoBaseByTenantIdAndEstado(tenantId, Payroll.PayrollStatus.PAGADO);
         BigDecimal avgSalary = active > 0
-                ? totalPayroll.divide(BigDecimal.valueOf(active), 2, RoundingMode.HALF_UP)
+                ? totalPayroll.divide(BigDecimal.valueOf(active), AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO)
                 : BigDecimal.ZERO;
 
         // Contracts

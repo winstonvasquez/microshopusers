@@ -96,7 +96,7 @@ public class TenantAccessAspect {
         var attrs = RequestContextHolder.getRequestAttributes();
         if (attrs instanceof ServletRequestAttributes sra) {
             HttpServletRequest req = sra.getRequest();
-            String header = req.getHeader("X-Tenant-ID");
+            String header = req.getHeader(AppConstants.Seguridad.X_TENANT_ID);
             if (header != null && !header.isBlank()) {
                 Long parsed = toLong(header.trim());
                 if (parsed != null) return parsed;

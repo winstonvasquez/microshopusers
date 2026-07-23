@@ -4,6 +4,7 @@ import com.microshop.users.infrastructure.persistence.entity.CreditAccountEntity
 import com.microshop.users.infrastructure.persistence.repository.CreditAccountRepository;
 import com.microshop.users.infrastructure.persistence.repository.CreditTransactionRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -92,8 +93,8 @@ public class ClienteCreditController {
     @Operation(summary = "Historial paginado de movimientos de crédito")
     public ResponseEntity<Page<TransactionResponse>> getHistory(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size) {
 
         Long userId = resolveUserId(userDetails.getUsername());
         Page<TransactionResponse> result = txRepo

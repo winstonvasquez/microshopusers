@@ -6,6 +6,7 @@ import com.microshop.rrhh.application.dto.employee.EmployeeResponseDto;
 import com.microshop.rrhh.application.query.EmployeeQueryService;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,8 +41,8 @@ public class EmployeeController {
     @GetMapping("/paged")
     @Operation(summary = "Listar empleados paginado (search + estado, server-side)")
     public ResponseEntity<Page<EmployeeResponseDto>> getEmployeesPaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Employee.EmployeeStatus status) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("apellidos").ascending());

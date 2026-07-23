@@ -2,6 +2,7 @@ package com.microshop.rrhh.client;
 
 import java.time.Duration;
 
+import com.microshop.users.shared.constants.AppConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +32,7 @@ public class WebClientConfig {
                 return next.exchange(req);
             }
             ClientRequest withHeader = ClientRequest.from(req)
-                    .header("X-Internal-Token", internalToken)
+                    .header(AppConstants.Seguridad.X_INTERNAL_TOKEN, internalToken)
                     .build();
             return next.exchange(withHeader);
         };

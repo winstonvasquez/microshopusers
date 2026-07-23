@@ -8,6 +8,7 @@ import com.microshop.users.application.mapper.CompanyMapper;
 import com.microshop.users.application.dto.*;
 import com.microshop.users.config.security.RequiresTenantAccess;
 import com.microshop.users.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,8 +55,8 @@ public class CompanyController {
     @GetMapping("/paged")
     @Operation(summary = "Listar empresas paginado (server-side)")
     public ResponseEntity<Page<CompanyResponseDto>> getCompaniesPaged(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
