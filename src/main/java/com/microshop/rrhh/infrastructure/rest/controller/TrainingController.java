@@ -4,16 +4,21 @@ import com.microshop.rrhh.application.command.TrainingCommandService;
 import com.microshop.rrhh.application.dto.training.*;
 import com.microshop.rrhh.application.query.TrainingQueryService;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.util.SpreadsheetExporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.TRAININGS)
@@ -25,10 +30,58 @@ public class TrainingController {
     private final TrainingCommandService trainingCommandService;
     private final TrainingQueryService trainingQueryService;
 
+    private static final DateTimeFormatter FECHA_FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     @GetMapping
     @Operation(summary = "Listar todas las capacitaciones")
     public ResponseEntity<List<TrainingResponseDto>> getAll() {
         return ResponseEntity.ok(trainingQueryService.getAll());
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Exportar capacitaciones a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
+    public ResponseEntity<byte[]> exportTrainings(
+            @RequestParam(defaultValue = "xlsx") String format,
+            @RequestParam(required = false) String estado) {
+        // Mismo filtro que la lista del frontend (solo estado; no hay búsqueda por texto en esta página).
+        List<TrainingResponseDto> capacitaciones = (estado != null && !estado.isBlank())
+                ? trainingQueryService.getByStatus(estado)
+                : trainingQueryService.getAll();
+
+        List<String> cabeceras = List.of("Curso", "Instructor", "Inicio", "Fin", "Horas", "Partic.", "Estado");
+        List<List<Object>> filas = capacitaciones.stream()
+                .map(t -> List.<Object>of(
+                        valorOVacio(t.nombre()),
+                        valorOVacio(t.instructor()),
+                        t.fechaInicio() != null ? t.fechaInicio().format(FECHA_FORMATO) : "",
+                        t.fechaFin() != null ? t.fechaFin().format(FECHA_FORMATO) : "",
+                        t.duracionHoras() != null ? t.duracionHoras() + "h" : "",
+                        t.participantes(),
+                        valorOVacio(t.estado())))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "capacitaciones.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Capacitaciones", cabeceras, filas);
+            filename = "capacitaciones.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
+    /** Retorna cadena vacía si el valor es null, para no propagar "null" literal a la exportación. */
+    private static String valorOVacio(String valor) {
+        return valor != null ? valor : "";
     }
 
     @GetMapping("/{id}")

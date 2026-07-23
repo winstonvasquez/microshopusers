@@ -41,4 +41,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     @EntityGraph(attributePaths = "employee")
     List<Attendance> findByTenantIdAndFechaBetween(Long tenantId, LocalDate desde, LocalDate hasta);
+
+    // Export server-side (sin filtro de fecha): trae todo el tenant con employee ya cargado (evita N+1 en el mapper).
+    @EntityGraph(attributePaths = "employee")
+    List<Attendance> findByTenantIdOrderByFechaDesc(Long tenantId);
 }

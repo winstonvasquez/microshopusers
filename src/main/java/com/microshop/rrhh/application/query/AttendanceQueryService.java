@@ -100,6 +100,22 @@ public class AttendanceQueryService {
                 .toList();
     }
 
+    /**
+     * Datos para exportación server-side (XLSX/CSV): mismos filtros que la lista del
+     * frontend (fecha exacta + tipo de registro), sin paginación real.
+     */
+    public List<AttendanceResponseDto> getAttendanceForExport(LocalDate fecha, Attendance.AttendanceType tipoRegistro) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        List<Attendance> registros = fecha != null
+                ? attendanceRepository.findByTenantIdAndFecha(tenantId, fecha)
+                : attendanceRepository.findByTenantIdOrderByFechaDesc(tenantId);
+
+        return registros.stream()
+                .filter(a -> tipoRegistro == null || a.getTipoRegistro() == tipoRegistro)
+                .map(attendanceMapper::toDto)
+                .toList();
+    }
+
     public long countTodayAttendance() {
         return attendanceRepository.countByTenantIdAndFecha(
                 tenantContext.getCurrentTenantId(), LocalDate.now());

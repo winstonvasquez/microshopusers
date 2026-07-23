@@ -3,17 +3,23 @@ package com.microshop.rrhh.infrastructure.rest.controller;
 import com.microshop.rrhh.application.command.EvaluationCommandService;
 import com.microshop.rrhh.application.dto.evaluation.*;
 import com.microshop.rrhh.application.query.EvaluationQueryService;
+import com.microshop.rrhh.domain.model.PerformanceEvaluation;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.util.SpreadsheetExporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.EVALUATIONS)
@@ -53,6 +59,52 @@ public class EvaluationController {
     @Operation(summary = "Listar evaluaciones asignadas a un evaluador")
     public ResponseEntity<List<EvaluationResponseDto>> getByEvaluador(@PathVariable Long evaluadorId) {
         return ResponseEntity.ok(evaluationQueryService.getByEvaluador(evaluadorId));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Exportar evaluaciones a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
+    public ResponseEntity<byte[]> exportEvaluations(
+            @RequestParam(defaultValue = "xlsx") String format,
+            @RequestParam(required = false) PerformanceEvaluation.EvaluationStatus estado,
+            @RequestParam(required = false) PerformanceEvaluation.EvaluationType tipo) {
+        // Trae TODAS las evaluaciones que matcheen los mismos filtros que la lista (sin paginación real).
+        List<EvaluationResponseDto> evaluaciones = evaluationQueryService.getAllForExport(estado, tipo);
+
+        List<String> cabeceras = List.of("Empleado", "Evaluador", "Período", "Tipo", "Fecha", "Puntaje", "Estado");
+        DateTimeFormatter fechaFormato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        List<List<Object>> filas = evaluaciones.stream()
+                .map(e -> List.<Object>of(
+                        e.employeeName() != null ? e.employeeName() : "Emp #" + e.employeeId(),
+                        e.evaluadorName() != null ? e.evaluadorName() : "Emp #" + e.evaluadorId(),
+                        valorOVacio(e.periodo()),
+                        valorOVacio(e.tipoEvaluacion()),
+                        e.fechaEvaluacion() != null ? e.fechaEvaluacion().format(fechaFormato) : "",
+                        e.puntaje() != null ? e.puntaje() : "",
+                        valorOVacio(e.estado())))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "evaluaciones.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Evaluaciones", cabeceras, filas);
+            filename = "evaluaciones.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
+    /** Retorna cadena vacía si el valor es null, para no propagar "null" literal a la exportación. */
+    private static String valorOVacio(String valor) {
+        return valor != null ? valor : "";
     }
 
     @PostMapping

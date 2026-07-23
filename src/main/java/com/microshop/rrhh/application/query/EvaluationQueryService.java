@@ -3,6 +3,7 @@ package com.microshop.rrhh.application.query;
 import com.microshop.rrhh.application.dto.evaluation.*;
 import com.microshop.rrhh.application.mapper.EvaluationMapper;
 import com.microshop.rrhh.config.security.TenantContext;
+import com.microshop.rrhh.domain.model.PerformanceEvaluation;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,20 @@ public class EvaluationQueryService {
     public List<EvaluationResponseDto> getByEvaluador(Long evaluadorId) {
         Long tenantId = tenantContext.getCurrentTenantId();
         return evaluationRepository.findByTenantIdAndEvaluadorId(tenantId, evaluadorId).stream()
+                .map(evaluationMapper::toDto)
+                .toList();
+    }
+
+    /**
+     * Trae todas las evaluaciones del tenant que matcheen los mismos filtros
+     * (estado, tipo) que la lista, para exportación server-side (sin paginación real).
+     */
+    public List<EvaluationResponseDto> getAllForExport(PerformanceEvaluation.EvaluationStatus estado,
+                                                        PerformanceEvaluation.EvaluationType tipoEvaluacion) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        return evaluationRepository.findByTenantId(tenantId).stream()
+                .filter(e -> estado == null || e.getEstado() == estado)
+                .filter(e -> tipoEvaluacion == null || e.getTipoEvaluacion() == tipoEvaluacion)
                 .map(evaluationMapper::toDto)
                 .toList();
     }

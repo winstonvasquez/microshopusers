@@ -6,12 +6,15 @@ import com.microshop.rrhh.application.dto.department.DepartmentResponseDto;
 import com.microshop.rrhh.application.query.DepartmentQueryService;
 import com.microshop.rrhh.shared.constants.ApiPaths;
 import com.microshop.users.shared.constants.AppConstants;
+import com.microshop.users.shared.util.SpreadsheetExporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +23,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.DEPARTMENTS)
@@ -75,6 +79,52 @@ public class DepartmentController {
     @Operation(summary = "Buscar departamentos")
     public ResponseEntity<List<DepartmentResponseDto>> searchDepartments(@RequestParam String term) {
         return ResponseEntity.ok(departmentQueryService.searchDepartments(term));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Exportar departamentos a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
+    public ResponseEntity<byte[]> exportDepartments(
+            @RequestParam(defaultValue = "xlsx") String format,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean activo) {
+        // Trae TODOS los departamentos que matcheen los mismos filtros que la lista (sin paginación real).
+        Pageable pageable = PageRequest.of(0, 100000, Sort.by("nombre").ascending());
+        List<DepartmentResponseDto> departamentos = departmentQueryService.getDepartmentsPaged(search, activo, pageable).getContent();
+
+        List<String> cabeceras = List.of("Código", "Nombre", "Dept. Padre", "Jefe", "Empleados", "Puestos", "Estado");
+        List<List<Object>> filas = departamentos.stream()
+                .map(d -> List.<Object>of(
+                        valorOVacio(d.codigo()),
+                        valorOVacio(d.nombre()),
+                        valorOVacio(d.parentName()),
+                        valorOVacio(d.managerName()),
+                        d.employeeCount(),
+                        d.positionCount(),
+                        Boolean.TRUE.equals(d.activo()) ? "ACTIVO" : "INACTIVO"))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "departments.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Departamentos", cabeceras, filas);
+            filename = "departments.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
+    /** Retorna cadena vacía si el valor es null, para no propagar "null" literal a la exportación. */
+    private static String valorOVacio(String valor) {
+        return valor != null ? valor : "";
     }
 
     @PostMapping
