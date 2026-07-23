@@ -37,6 +37,16 @@ public class WebClientConfig {
         };
     }
 
+    private ExchangeFilterFunction correlationIdFilter() {
+        return ExchangeFilterFunction.ofRequestProcessor(request -> {
+            String cid = org.slf4j.MDC.get("correlationId");
+            return reactor.core.publisher.Mono.just(cid == null ? request
+                    : ClientRequest.from(request)
+                            .header("X-Correlation-Id", cid)
+                            .build());
+        });
+    }
+
     @Bean
     public WebClient.Builder webClientBuilder() {
         HttpClient httpClient = HttpClient.create()
@@ -44,7 +54,8 @@ public class WebClientConfig {
                 .responseTimeout(RESPONSE_TIMEOUT);
 
         return WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(httpClient));
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .filter(correlationIdFilter());
     }
 
     @Bean

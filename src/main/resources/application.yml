@@ -67,6 +67,8 @@ management:
       enabled: false
 
 logging:
+  pattern:
+    level: "%5p [cid=%X{correlationId:-}]"
   level:
     org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
 
