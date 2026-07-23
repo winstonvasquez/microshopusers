@@ -1,10 +1,9 @@
 package com.microshop.users.infrastructure.rest.controller;
 
-import com.microshop.users.infrastructure.persistence.entity.ChatConversacionEntity;
-import com.microshop.users.infrastructure.persistence.entity.ChatMensajeEntity;
-import com.microshop.users.infrastructure.persistence.repository.ChatConversacionRepository;
-import com.microshop.users.infrastructure.persistence.repository.ChatMensajeRepository;
-import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.application.command.ChatCommandService;
+import com.microshop.users.application.dto.ChatConversacionResponseDto;
+import com.microshop.users.application.dto.ChatMensajeResponseDto;
+import com.microshop.users.application.query.ChatQueryService;
 import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,14 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Controlador REST para el chat de soporte cliente ↔ MicroShop.
@@ -32,9 +32,8 @@ import java.util.Set;
 @Tag(name = "Chat Soporte", description = "Mensajería cliente-soporte con polling HTTP")
 public class ChatController {
 
-    private final ChatConversacionRepository conversacionRepo;
-    private final ChatMensajeRepository mensajeRepo;
-    private final UsuarioRepository usuarioRepo;
+    private final ChatCommandService commandService;
+    private final ChatQueryService queryService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Endpoints CLIENTE
@@ -46,20 +45,12 @@ public class ChatController {
      */
     @PostMapping("/api/chat/conversaciones")
     @Operation(summary = "Iniciar conversación de soporte")
-    public ResponseEntity<ChatConversacionEntity> crearConversacion(
+    public ResponseEntity<ChatConversacionResponseDto> crearConversacion(
             @AuthenticationPrincipal UserDetails principal,
             @RequestBody(required = false) Map<String, String> body) {
 
-        Long clienteId = resolverClienteId(principal.getUsername());
         String asunto = body != null ? body.get("asunto") : null;
-
-        ChatConversacionEntity conv = ChatConversacionEntity.builder()
-                .clienteId(clienteId)
-                .asunto(asunto)
-                .estado("ABIERTA")
-                .build();
-        conversacionRepo.save(conv);
-        log.info("Nueva conversación de chat creada: id={}, clienteId={}", conv.getId(), clienteId);
+        ChatConversacionResponseDto conv = commandService.crearConversacion(principal.getUsername(), asunto);
         return ResponseEntity.status(HttpStatus.CREATED).body(conv);
     }
 
@@ -69,12 +60,10 @@ public class ChatController {
      */
     @GetMapping("/api/chat/conversaciones/activa")
     @Operation(summary = "Obtener conversación activa del cliente")
-    public ResponseEntity<ChatConversacionEntity> getConversacionActiva(
+    public ResponseEntity<ChatConversacionResponseDto> getConversacionActiva(
             @AuthenticationPrincipal UserDetails principal) {
 
-        Long clienteId = resolverClienteId(principal.getUsername());
-        return conversacionRepo
-                .findFirstByClienteIdAndEstadoOrderByCreatedAtDesc(clienteId, "ABIERTA")
+        return queryService.getConversacionActiva(principal.getUsername())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -85,45 +74,21 @@ public class ChatController {
      */
     @PostMapping("/api/chat/conversaciones/{id}/mensajes")
     @Operation(summary = "Enviar mensaje en la conversación")
-    public ResponseEntity<ChatMensajeEntity> enviarMensaje(
+    public ResponseEntity<ChatMensajeResponseDto> enviarMensaje(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal,
             @RequestBody Map<String, String> body) {
-
-        ChatConversacionEntity conv = conversacionRepo.findById(id)
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Conversación no encontrada: " + id));
-
-        Long emisorId = resolverClienteId(principal.getUsername());
-        // Determinar tipo de emisor: el personal de staff (admin/superadmin/soporte)
-        // envía como "SOPORTE"; el resto como "CLIENTE". Comparación EXACTA contra la
-        // authority ROLE_* — antes usaba .contains() (matching débil que matchearía
-        // cualquier authority conteniendo el literal). Fix auditoría 2026-07-20.
-        Set<String> rolesStaff = Set.of(
-                AppConstants.Seguridad.ROLE_ADMIN,
-                AppConstants.Seguridad.ROLE_SUPERADMIN,
-                AppConstants.Seguridad.ROLE_SOPORTE);
-        boolean esAdmin = principal.getAuthorities().stream()
-                .anyMatch(a -> rolesStaff.contains(a.getAuthority()));
-        String emisorTipo = esAdmin ? "SOPORTE" : "CLIENTE";
 
         String contenido = body.get("contenido");
         if (contenido == null || contenido.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
-        ChatMensajeEntity msg = ChatMensajeEntity.builder()
-                .conversacionId(id)
-                .emisorId(emisorId)
-                .emisorTipo(emisorTipo)
-                .contenido(contenido.trim())
-                .build();
-        mensajeRepo.save(msg);
+        Set<String> authorities = principal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
 
-        // Actualizar lastMessageAt de la conversación
-        conv.setLastMessageAt(msg.getTimestamp());
-        conversacionRepo.save(conv);
-
-        log.info("Mensaje enviado: convId={}, emisor={}, tipo={}", id, emisorId, emisorTipo);
+        ChatMensajeResponseDto msg = commandService.enviarMensaje(id, principal.getUsername(), authorities, contenido);
         return ResponseEntity.status(HttpStatus.CREATED).body(msg);
     }
 
@@ -133,18 +98,11 @@ public class ChatController {
      */
     @GetMapping("/api/chat/conversaciones/{id}/mensajes")
     @Operation(summary = "Obtener mensajes (polling) — since es ISO-8601 opcional")
-    public ResponseEntity<List<ChatMensajeEntity>> getMensajes(
+    public ResponseEntity<List<ChatMensajeResponseDto>> getMensajes(
             @PathVariable Long id,
             @RequestParam(required = false) String since) {
 
-        List<ChatMensajeEntity> mensajes;
-        if (since != null && !since.isBlank()) {
-            Instant sinceInstant = Instant.parse(since);
-            mensajes = mensajeRepo.findByConversacionIdAndTimestampAfterOrderByTimestampAsc(id, sinceInstant);
-        } else {
-            mensajes = mensajeRepo.findByConversacionIdOrderByTimestampAsc(id);
-        }
-        return ResponseEntity.ok(mensajes);
+        return ResponseEntity.ok(queryService.getMensajes(id, since));
     }
 
     /**
@@ -154,15 +112,7 @@ public class ChatController {
     @PutMapping("/api/chat/conversaciones/{id}/leer")
     @Operation(summary = "Marcar mensajes de soporte como leídos")
     public ResponseEntity<Void> marcarLeido(@PathVariable Long id) {
-        List<ChatMensajeEntity> noLeidos = mensajeRepo
-                .findByConversacionIdOrderByTimestampAsc(id)
-                .stream()
-                .filter(m -> !m.isLeido() && "SOPORTE".equals(m.getEmisorTipo()))
-                .toList();
-
-        noLeidos.forEach(m -> m.setLeido(true));
-        mensajeRepo.saveAll(noLeidos);
-        log.info("Marcados {} mensajes como leídos en convId={}", noLeidos.size(), id);
+        commandService.marcarLeido(id);
         return ResponseEntity.ok().build();
     }
 
@@ -173,8 +123,7 @@ public class ChatController {
     @GetMapping("/api/chat/conversaciones/{id}/unread-count")
     @Operation(summary = "Contador de mensajes no leídos del soporte")
     public ResponseEntity<Map<String, Long>> unreadCount(@PathVariable Long id) {
-        long count = mensajeRepo.countByConversacionIdAndLeidoFalseAndEmisorTipo(id, "SOPORTE");
-        return ResponseEntity.ok(Map.of("count", count));
+        return ResponseEntity.ok(Map.of("count", queryService.unreadCount(id)));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -188,9 +137,8 @@ public class ChatController {
     @GetMapping("/api/admin/chat/conversaciones")
     @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
     @Operation(summary = "Listar conversaciones activas (admin)")
-    public ResponseEntity<List<ChatConversacionEntity>> listarConversacionesAdmin() {
-        List<ChatConversacionEntity> activas = conversacionRepo.findByEstado("ABIERTA");
-        return ResponseEntity.ok(activas);
+    public ResponseEntity<List<ChatConversacionResponseDto>> listarConversacionesAdmin() {
+        return ResponseEntity.ok(queryService.listarConversacionesAdmin());
     }
 
     /**
@@ -200,48 +148,17 @@ public class ChatController {
     @PostMapping("/api/admin/chat/conversaciones/{id}/mensajes")
     @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
     @Operation(summary = "Soporte responde en la conversación")
-    public ResponseEntity<ChatMensajeEntity> responderComoSoporte(
+    public ResponseEntity<ChatMensajeResponseDto> responderComoSoporte(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal,
             @RequestBody Map<String, String> body) {
 
-        ChatConversacionEntity conv = conversacionRepo.findById(id)
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Conversación no encontrada: " + id));
-
-        Long emisorId = resolverClienteId(principal.getUsername());
         String contenido = body.get("contenido");
         if (contenido == null || contenido.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
-        ChatMensajeEntity msg = ChatMensajeEntity.builder()
-                .conversacionId(id)
-                .emisorId(emisorId)
-                .emisorTipo("SOPORTE")
-                .contenido(contenido.trim())
-                .build();
-        mensajeRepo.save(msg);
-
-        conv.setLastMessageAt(msg.getTimestamp());
-        conversacionRepo.save(conv);
-
-        log.info("Soporte respondió: convId={}, adminId={}", id, emisorId);
+        ChatMensajeResponseDto msg = commandService.responderComoSoporte(id, principal.getUsername(), contenido);
         return ResponseEntity.status(HttpStatus.CREATED).body(msg);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helper
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Resuelve el ID de usuario a partir del username (email) extraído del JWT.
-     */
-    private Long resolverClienteId(String username) {
-        return usuarioRepo.findByUsername(username)
-                .map(u -> u.getId())
-                .orElseGet(() -> usuarioRepo.findByEmail(username)
-                        .map(u -> u.getId())
-                        .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException(
-                                "Usuario no encontrado: " + username)));
     }
 }
