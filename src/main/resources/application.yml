@@ -102,8 +102,11 @@ application:
             client-secret: "TU_CLIENT_SECRET_DE_APPLE"
     jwt:
       expiration: 86400000 # 24 hours
+      # SEGURIDAD: la clave dev es solo un FALLBACK. En prod, inyectar JWT_PRIVATE_KEY
+      # (env var / secret manager). Esta clave está expuesta en el historial de git y DEBE
+      # rotarse (ver B1.1 en el roadmap de auditoría). NO usar este par en producción.
       private-key: |
-        -----BEGIN PRIVATE KEY-----
+        ${JWT_PRIVATE_KEY:-----BEGIN PRIVATE KEY-----
         MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCrGpabbRKRVv4D
         8SMVtrxxNnmFRqNQ4ByoHLYePS2vUdImVVYqDMxWWuO+aoH3ClnaJiglvTbK0RJR
         ulvLEJmXgRtBe7pSXJFOeBCfVMbSr3rck/9QET9joGaE6qrAQLNqmnegzwpr/xmv
@@ -130,9 +133,9 @@ application:
         Jj0LywocRXV504N4S2S+GL1QSKDhh643ElkwA43eAcNJXZl1tRFf7f0almn/CxGY
         alVVLaHSoa+yl6yAyE6pkLFNQOazRYK6okmq62yFuy5hBp++Cx/CjXKunVkqQdKY
         Tcewjkb3zKbpp/CbWJ8fQA==
-        -----END PRIVATE KEY-----
+        -----END PRIVATE KEY-----}
       public-key: |
-        -----BEGIN PUBLIC KEY-----
+        ${JWT_PUBLIC_KEY:-----BEGIN PUBLIC KEY-----
         MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqxqWm20SkVb+A/EjFba8
         cTZ5hUajUOAcqBy2Hj0tr1HSJlVWKgzMVlrjvmqB9wpZ2iYoJb02ytESUbpbyxCZ
         l4EbQXu6UlyRTngQn1TG0q963JP/UBE/Y6BmhOqqwECzapp3oM8Ka/8Zr3Oqyzd7
@@ -140,5 +143,5 @@ application:
         4/uze4KDvr7WkR77Vy5Bvlu2ynM1JucZYHoweAF7N04tKVDa0L3If38qovsf9jEW
         JwxmSNNPyXOrGzm/cf5egsrDUaCtFsnBavJ+BX6y5fZ9vcFpVfXuzMq8ggyg8pEF
         +QIDAQAB
-        -----END PUBLIC KEY-----
+        -----END PUBLIC KEY-----}
 
