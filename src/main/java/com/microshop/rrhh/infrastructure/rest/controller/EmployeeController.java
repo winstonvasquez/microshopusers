@@ -7,6 +7,8 @@ import com.microshop.rrhh.application.query.EmployeeQueryService;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.shared.constants.ApiPaths;
 import com.microshop.users.shared.constants.AppConstants;
+import com.microshop.users.shared.util.AppUtils;
+import com.microshop.users.shared.util.SpreadsheetExporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,11 +18,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.EMPLOYEES)
@@ -77,6 +82,51 @@ public class EmployeeController {
     @Operation(summary = "Contar empleados activos")
     public ResponseEntity<Long> countActiveEmployees() {
         return ResponseEntity.ok(employeeQueryService.countActiveEmployees());
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Exportar empleados a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
+    public ResponseEntity<byte[]> exportEmployees(
+            @RequestParam(defaultValue = "xlsx") String format,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Employee.EmployeeStatus status) {
+        // Trae TODOS los empleados que matcheen los mismos filtros que la lista (sin paginación real).
+        Pageable pageable = PageRequest.of(0, 100000, Sort.by("apellidos").ascending());
+        List<EmployeeResponseDto> empleados = employeeQueryService.getEmployeesPaged(search, status, pageable).getContent();
+
+        List<String> cabeceras = List.of("Código", "Nombre Completo", "DNI/Doc", "Departamento", "Puesto", "Estado");
+        List<List<Object>> filas = empleados.stream()
+                .map(e -> List.<Object>of(
+                        valorOVacio(e.codigoEmpleado()),
+                        AppUtils.fullName(e.nombres(), e.apellidos()),
+                        valorOVacio(e.documentoIdentidad()),
+                        valorOVacio(e.departmentName() != null ? e.departmentName() : e.area()),
+                        valorOVacio(e.positionName() != null ? e.positionName() : e.cargo()),
+                        e.estado() != null ? e.estado().name() : ""))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "empleados.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Empleados", cabeceras, filas);
+            filename = "empleados.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
+    /** Retorna cadena vacía si el valor es null, para no propagar "null" literal a la exportación. */
+    private static String valorOVacio(String valor) {
+        return valor != null ? valor : "";
     }
 
     @PostMapping
