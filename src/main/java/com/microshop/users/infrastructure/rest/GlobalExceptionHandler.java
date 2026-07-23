@@ -6,6 +6,7 @@ import com.microshop.users.shared.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -126,6 +127,16 @@ public class GlobalExceptionHandler {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 "Parámetro '" + ex.getName() + "' con valor '" + ex.getValue() + "' no es del tipo esperado (" + required + ")");
         detail.setType(URI.create("urn:users:type-mismatch"));
+        detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
+        return detail;
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ProblemDetail handleOptimisticLocking(ObjectOptimisticLockingFailureException ex) {
+        log.warn("Conflicto de bloqueo optimista: {}", ex.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "El registro fue modificado por otra operación, reintenta");
+        detail.setType(URI.create("urn:users:optimistic-lock-conflict"));
         detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
         return detail;
     }

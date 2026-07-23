@@ -79,6 +79,11 @@ public class LeaveBalance {
     @Comment("Fecha de última actualización")
     private LocalDateTime updatedAt;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    @Comment("Versión para bloqueo optimista (evita check-then-act concurrente)")
+    private Long version;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
