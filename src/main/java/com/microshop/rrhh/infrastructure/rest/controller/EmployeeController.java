@@ -129,6 +129,45 @@ public class EmployeeController {
         return valor != null ? valor : "";
     }
 
+    @GetMapping("/report/export")
+    @Operation(summary = "Exportar reporte RRHH (admin/reportes) a XLSX o CSV — mismas columnas que la vista")
+    public ResponseEntity<byte[]> exportReporteRrhh(@RequestParam(defaultValue = "xlsx") String format) {
+        // Replica exactamente lo que arma admin/pages/reportes/reportes-rrhh.component.ts:
+        // todos los empleados del tenant (sin filtros server-side, igual que getAllEmployees()).
+        List<EmployeeResponseDto> empleados = employeeQueryService.getAllEmployees();
+
+        List<String> cabeceras = List.of("Codigo", "Nombres", "Apellidos", "DNI", "Cargo", "Area", "Estado", "Fecha Ingreso");
+        List<List<Object>> filas = empleados.stream()
+                .map(e -> List.<Object>of(
+                        valorOVacio(e.codigoEmpleado()),
+                        valorOVacio(e.nombres()),
+                        valorOVacio(e.apellidos()),
+                        valorOVacio(e.documentoIdentidad()),
+                        valorOVacio(e.cargo()),
+                        valorOVacio(e.area()),
+                        e.estado() != null ? e.estado().name() : "",
+                        e.fechaIngreso() != null ? e.fechaIngreso().toString() : ""))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "reporte-rrhh.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Reporte RRHH", cabeceras, filas);
+            filename = "reporte-rrhh.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
     @PostMapping
     @Operation(summary = "Crear nuevo empleado")
     public ResponseEntity<EmployeeResponseDto> createEmployee(@Valid @RequestBody EmployeeRequestDto request) {

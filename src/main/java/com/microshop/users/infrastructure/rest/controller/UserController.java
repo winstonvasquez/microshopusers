@@ -5,9 +5,11 @@ import com.microshop.users.application.command.UserCommandService;
 import com.microshop.users.application.query.UserQueryService;
 import com.microshop.users.application.dto.ChangePasswordRequest;
 import com.microshop.users.application.dto.LoginResponse;
+import com.microshop.users.application.dto.UserExportRowDto;
 import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.shared.constants.ApiPaths;
+import com.microshop.users.shared.util.SpreadsheetExporter;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,15 +23,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.USERS)
@@ -57,6 +64,51 @@ public class UserController {
         log.info("GET /api/users/all - Obteniendo todos los usuarios");
         List<UserResponseDto> users = userQueryService.findAll();
         return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/report/export")
+    @Operation(summary = "Exportar reporte de clientes/usuarios (admin/reportes) a XLSX o CSV — mismas columnas que la vista")
+    public ResponseEntity<byte[]> exportReporteClientes(@RequestParam(defaultValue = "xlsx") String format) {
+        // Replica exactamente lo que arma admin/pages/reportes/reportes-clientes.component.ts:
+        // todos los usuarios del sistema (sin filtros server-side, igual que getAllUsersNoPagination()).
+        List<UserExportRowDto> usuarios = userQueryService.findAllForExport();
+
+        DateTimeFormatter fechaFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault());
+
+        List<String> cabeceras = List.of("ID", "Usuario", "Email", "Nombre", "Apellido", "Estado", "Fecha Registro");
+        List<List<Object>> filas = usuarios.stream()
+                .map(u -> List.<Object>of(
+                        u.id(),
+                        valorOVacio(u.username()),
+                        valorOVacio(u.email()),
+                        valorOVacio(u.nombres()),
+                        valorOVacio(u.apellidos()),
+                        u.activo() ? "ACTIVO" : "INACTIVO",
+                        u.fechaCreacion() != null ? fechaFormatter.format(u.fechaCreacion()) : ""))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "reporte-clientes.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Reporte de Clientes", cabeceras, filas);
+            filename = "reporte-clientes.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
+    /** Retorna cadena vacía si el valor es null, para no propagar "null" literal a la exportación. */
+    private static String valorOVacio(String valor) {
+        return valor != null ? valor : "";
     }
 
     @GetMapping("/{id}")

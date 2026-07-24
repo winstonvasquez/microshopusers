@@ -1,6 +1,7 @@
 package com.microshop.users.application.query;
 
 import com.microshop.users.application.mapper.UserMapper;
+import com.microshop.users.application.dto.UserExportRowDto;
 import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.PolicyRoleEntity;
 import com.microshop.users.infrastructure.persistence.repository.PolicyRoleRepository;
@@ -60,6 +61,29 @@ public class UserQueryService {
         log.debug("Fetching users by role: {}", rolId);
         return usuarioRepository.findByRolId(rolId).stream()
                 .map(userMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene todos los usuarios con los campos que necesita el reporte de
+     * exportación (admin/reportes-clientes): activo, fecha de creación cruda
+     * y nombres/apellidos, que {@link UserResponseDto} no expone.
+     */
+    @Transactional(readOnly = true)
+    public List<UserExportRowDto> findAllForExport() {
+        log.debug("Fetching all users for export report");
+        return usuarioRepository.findAll().stream()
+                .map(u -> {
+                    var persona = u.getPersona();
+                    return new UserExportRowDto(
+                            u.getId(),
+                            u.getUsername(),
+                            u.getEmail(),
+                            persona != null ? persona.getNombres() : null,
+                            persona != null ? persona.getApellidos() : null,
+                            u.isActivo(),
+                            u.getFechaCreacion());
+                })
                 .collect(Collectors.toList());
     }
 
