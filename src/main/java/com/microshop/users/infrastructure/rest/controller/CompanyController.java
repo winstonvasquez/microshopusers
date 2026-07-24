@@ -9,6 +9,7 @@ import com.microshop.users.application.dto.*;
 import com.microshop.users.config.security.RequiresTenantAccess;
 import com.microshop.users.shared.constants.ApiPaths;
 import com.microshop.users.shared.constants.AppConstants;
+import com.microshop.users.shared.util.SpreadsheetExporter;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,11 +21,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.COMPANIES)
@@ -61,6 +65,50 @@ public class CompanyController {
             @RequestParam(required = false) Boolean active) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
         return ResponseEntity.ok(companyQueryService.findPaged(search, active, pageable));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Exportar empresas a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
+    public ResponseEntity<byte[]> exportCompanies(
+            @RequestParam(defaultValue = "xlsx") String format,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean active) {
+        // Trae TODAS las empresas que matcheen los mismos filtros que la lista (sin paginación real).
+        Pageable pageable = PageRequest.of(0, 100000, Sort.by("name").ascending());
+        List<CompanyResponseDto> empresas = companyQueryService.findPaged(search, active, pageable).getContent();
+
+        List<String> cabeceras = List.of("Nombre", "RUC", "Razón Social", "Email", "Estado");
+        List<List<Object>> filas = empresas.stream()
+                .map(c -> List.<Object>of(
+                        valorOVacio(c.name()),
+                        valorOVacio(c.ruc()),
+                        valorOVacio(c.legalName()),
+                        valorOVacio(c.email()),
+                        c.isActive() ? "Activo" : "Inactivo"))
+                .collect(Collectors.toList());
+
+        byte[] bytes;
+        String filename;
+        MediaType contentType;
+        if ("csv".equalsIgnoreCase(format)) {
+            bytes = SpreadsheetExporter.toCsv(cabeceras, filas);
+            filename = "empresas.csv";
+            contentType = MediaType.parseMediaType("text/csv;charset=UTF-8");
+        } else {
+            bytes = SpreadsheetExporter.toXlsx("Empresas", cabeceras, filas);
+            filename = "empresas.xlsx";
+            contentType = MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(contentType)
+                .body(bytes);
+    }
+
+    /** Retorna cadena vacía si el valor es null, para no propagar "null" literal a la exportación. */
+    private static String valorOVacio(String valor) {
+        return valor != null ? valor : "";
     }
 
     @GetMapping("/{id}")
