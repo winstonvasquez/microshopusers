@@ -1,5 +1,6 @@
 package com.microshop.users.application.query;
 
+import com.microshop.users.application.dto.CatalogOptionDto;
 import com.microshop.users.application.dto.SystemParameterDto;
 import com.microshop.users.infrastructure.persistence.repository.ErpParameterJpaRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,23 @@ public class ErpParameterQueryService {
                         e -> e.getParamKey(),
                         e -> e.getParamValue() != null ? e.getParamValue() : "",
                         (v1, v2) -> v1));
+    }
+
+    /**
+     * Opciones de un catálogo (dropdown) global. Convención:
+     * param_key = 'CATALOGO.&lt;TABLA&gt;.&lt;CODIGO&gt;', param_value = etiqueta.
+     * El código se deriva quitando el prefijo 'CATALOGO.&lt;TABLA&gt;.'.
+     */
+    @Cacheable(value = "erp-params", key = "'catalog:' + #tabla")
+    public List<CatalogOptionDto> getCatalog(String tabla) {
+        String prefix = "CATALOGO." + tabla + ".";
+        return repository
+                .findByParamKeyStartingWithAndTenantIdIsNullAndIsActiveTrueOrderByIdAsc(prefix)
+                .stream()
+                .map(e -> new CatalogOptionDto(
+                        e.getParamKey().substring(prefix.length()),
+                        e.getParamValue() != null ? e.getParamValue() : e.getParamKey().substring(prefix.length())))
+                .toList();
     }
 
     /** Retorna todos los parámetros activos globales como lista de DTOs con metadata. */

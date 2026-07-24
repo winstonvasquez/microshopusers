@@ -209,11 +209,17 @@ public class PayrollCommandService {
         BigDecimal tasaOnp = parametros.tasaOnp();
         BigDecimal tasaEssalud = parametros.tasaEssalud();
 
-        // 1. Sueldo base
+        // 1. Sueldo base — prioridad: (a) Salary abierto más reciente, (b) sueldo del
+        // contrato ACTIVO más reciente (reconcilia ambas fuentes de remuneración), (c) RMV.
         BigDecimal sueldoBase = emp.getSalaries().stream()
                 .filter(s -> s.getFechaFin() == null)
                 .max(Comparator.comparing(Salary::getFechaInicio))
                 .map(Salary::getSalarioBase)
+                .or(() -> emp.getContracts().stream()
+                        .filter(c -> c.getEstado() == Contract.ContractStatus.ACTIVO)
+                        .filter(c -> c.getSalarioBase() != null)
+                        .max(Comparator.comparing(Contract::getFechaInicio))
+                        .map(Contract::getSalarioBase))
                 .orElse(rmv);
 
         // 2. Asignación familiar

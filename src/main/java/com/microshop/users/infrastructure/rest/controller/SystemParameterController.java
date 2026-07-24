@@ -1,6 +1,7 @@
 package com.microshop.users.infrastructure.rest.controller;
 
 import com.microshop.users.application.command.ErpParameterCommandService;
+import com.microshop.users.application.dto.CatalogOptionDto;
 import com.microshop.users.application.dto.SystemParameterDto;
 import com.microshop.users.application.query.ErpParameterQueryService;
 import com.microshop.users.shared.constants.ApiPaths;
@@ -22,6 +23,15 @@ public class SystemParameterController {
     @GetMapping
     public ResponseEntity<List<SystemParameterDto>> getAllParameters() {
         return ResponseEntity.ok(parameterQueryService.getAllActiveAsDto());
+    }
+
+    /**
+     * Opciones de un catálogo para poblar dropdowns (ej. /catalog/AFP).
+     * Fuente única: erp_parameters con param_key = 'CATALOGO.&lt;TABLA&gt;.&lt;CODIGO&gt;'.
+     */
+    @GetMapping("/catalog/{tabla}")
+    public ResponseEntity<List<CatalogOptionDto>> getCatalog(@PathVariable String tabla) {
+        return ResponseEntity.ok(parameterQueryService.getCatalog(tabla));
     }
 
     @GetMapping("/{key}")

@@ -19,4 +19,10 @@ public interface ErpParameterJpaRepository extends JpaRepository<ErpParameterEnt
     Optional<ErpParameterEntity> findByParamKeyAndTenantId(String key, String tenantId);
 
     List<ErpParameterEntity> findAllByIsActiveTrueAndTenantIdIsNull();
+
+    /**
+     * Opciones de un catálogo (global) ordenadas por id = orden de seed.
+     * Convención: param_key = 'CATALOGO.<TABLA>.<CODIGO>' → prefijo 'CATALOGO.<TABLA>.'.
+     */
+    List<ErpParameterEntity> findByParamKeyStartingWithAndTenantIdIsNullAndIsActiveTrueOrderByIdAsc(String prefix);
 }
