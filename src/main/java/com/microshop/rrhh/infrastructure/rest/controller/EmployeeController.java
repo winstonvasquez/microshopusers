@@ -49,9 +49,30 @@ public class EmployeeController {
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Employee.EmployeeStatus status) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("apellidos").ascending());
+        Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
         return ResponseEntity.ok(employeeQueryService.getEmployeesPaged(search, status, pageable));
+    }
+
+    /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
+    private static final List<String> CAMPOS_ORDENABLES =
+            List.of("apellidos", "nombres", "codigoEmpleado", "createdAt", "fechaIngreso");
+
+    /** Parsea "campo,dir" (ej. "createdAt,desc"); si es inválido usa apellidos ASC. */
+    private static Sort resolveSort(String sort) {
+        Sort porDefecto = Sort.by("apellidos").ascending();
+        if (sort == null || sort.isBlank()) {
+            return porDefecto;
+        }
+        String[] partes = sort.split(",");
+        String campo = partes[0].trim();
+        if (!CAMPOS_ORDENABLES.contains(campo)) {
+            return porDefecto;
+        }
+        Sort.Direction dir = partes.length > 1 && "desc".equalsIgnoreCase(partes[1].trim())
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(dir, campo);
     }
 
     @GetMapping("/{id}")

@@ -48,39 +48,42 @@ public class EmployeeMapper {
         return entity;
     }
 
+    /**
+     * Update con semántica PATCH: solo sobrescribe los campos presentes (no null) en el DTO.
+     * Defensa contra pérdida de datos cuando un formulario parcial no envía todos los campos
+     * (un campo ausente llega como null y NO debe borrar el valor guardado en BD).
+     */
     public void updateEntity(Employee entity, EmployeeRequestDto dto) {
-        entity.setCodigoEmpleado(dto.codigoEmpleado());
-        entity.setNombres(dto.nombres());
-        entity.setApellidos(dto.apellidos());
+        if (dto.codigoEmpleado() != null) entity.setCodigoEmpleado(dto.codigoEmpleado());
+        if (dto.nombres() != null) entity.setNombres(dto.nombres());
+        if (dto.apellidos() != null) entity.setApellidos(dto.apellidos());
         if (dto.tipoDocumento() != null) entity.setTipoDocumento(dto.tipoDocumento());
-        entity.setDocumentoIdentidad(dto.documentoIdentidad());
-        entity.setFechaNacimiento(dto.fechaNacimiento());
-        entity.setGenero(dto.genero());
-        entity.setEstadoCivil(dto.estadoCivil());
-        entity.setNacionalidad(dto.nacionalidad());
-        entity.setTipoSangre(dto.tipoSangre());
-        entity.setFechaIngreso(dto.fechaIngreso());
-        entity.setFechaSalida(dto.fechaSalida());
-        entity.setMotivoSalida(dto.motivoSalida());
-        entity.setCargo(dto.cargo());
-        entity.setArea(dto.area());
-        entity.setEmail(dto.email());
-        entity.setTelefono(dto.telefono());
-        entity.setDireccion(dto.direccion());
-        entity.setDistrito(dto.distrito());
-        entity.setProvincia(dto.provincia());
-        entity.setDepartamentoGeo(dto.departamentoGeo());
-        entity.setFotoUrl(dto.fotoUrl());
-        entity.setLinkedinUrl(dto.linkedinUrl());
-        entity.setNivelEducacion(dto.nivelEducacion());
-        entity.setProfesion(dto.profesion());
-        entity.setUniversidad(dto.universidad());
+        if (dto.documentoIdentidad() != null) entity.setDocumentoIdentidad(dto.documentoIdentidad());
+        if (dto.fechaNacimiento() != null) entity.setFechaNacimiento(dto.fechaNacimiento());
+        if (dto.genero() != null) entity.setGenero(dto.genero());
+        if (dto.estadoCivil() != null) entity.setEstadoCivil(dto.estadoCivil());
+        if (dto.nacionalidad() != null) entity.setNacionalidad(dto.nacionalidad());
+        if (dto.tipoSangre() != null) entity.setTipoSangre(dto.tipoSangre());
+        if (dto.fechaIngreso() != null) entity.setFechaIngreso(dto.fechaIngreso());
+        if (dto.fechaSalida() != null) entity.setFechaSalida(dto.fechaSalida());
+        if (dto.motivoSalida() != null) entity.setMotivoSalida(dto.motivoSalida());
+        if (dto.cargo() != null) entity.setCargo(dto.cargo());
+        if (dto.area() != null) entity.setArea(dto.area());
+        if (dto.email() != null) entity.setEmail(dto.email());
+        if (dto.telefono() != null) entity.setTelefono(dto.telefono());
+        if (dto.direccion() != null) entity.setDireccion(dto.direccion());
+        if (dto.distrito() != null) entity.setDistrito(dto.distrito());
+        if (dto.provincia() != null) entity.setProvincia(dto.provincia());
+        if (dto.departamentoGeo() != null) entity.setDepartamentoGeo(dto.departamentoGeo());
+        if (dto.fotoUrl() != null) entity.setFotoUrl(dto.fotoUrl());
+        if (dto.linkedinUrl() != null) entity.setLinkedinUrl(dto.linkedinUrl());
+        if (dto.nivelEducacion() != null) entity.setNivelEducacion(dto.nivelEducacion());
+        if (dto.profesion() != null) entity.setProfesion(dto.profesion());
+        if (dto.universidad() != null) entity.setUniversidad(dto.universidad());
         if (dto.sistemaPrevisional() != null) entity.setSistemaPrevisional(dto.sistemaPrevisional());
-        entity.setAfpNombre(dto.afpNombre());
-        entity.setStoreId(dto.storeId());
-        if (dto.estado() != null) {
-            entity.setEstado(dto.estado());
-        }
+        if (dto.afpNombre() != null) entity.setAfpNombre(dto.afpNombre());
+        if (dto.storeId() != null) entity.setStoreId(dto.storeId());
+        if (dto.estado() != null) entity.setEstado(dto.estado());
     }
 
     public EmployeeResponseDto toDto(Employee entity) {

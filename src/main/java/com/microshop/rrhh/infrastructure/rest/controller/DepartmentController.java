@@ -40,9 +40,30 @@ public class DepartmentController {
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String sort,
             @RequestParam(required = false) Boolean activo) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
+        Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
         return ResponseEntity.ok(departmentQueryService.getDepartmentsPaged(search, activo, pageable));
+    }
+
+    /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
+    private static final List<String> CAMPOS_ORDENABLES =
+            List.of("nombre", "codigo", "createdAt");
+
+    /** Parsea "campo,dir" (ej. "createdAt,desc"); si es inválido usa nombre ASC. */
+    private static Sort resolveSort(String sort) {
+        Sort porDefecto = Sort.by("nombre").ascending();
+        if (sort == null || sort.isBlank()) {
+            return porDefecto;
+        }
+        String[] partes = sort.split(",");
+        String campo = partes[0].trim();
+        if (!CAMPOS_ORDENABLES.contains(campo)) {
+            return porDefecto;
+        }
+        Sort.Direction dir = partes.length > 1 && "desc".equalsIgnoreCase(partes[1].trim())
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(dir, campo);
     }
 
     @GetMapping
