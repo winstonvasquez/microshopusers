@@ -11,8 +11,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.support.WebClientAdapter;
-import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 import io.netty.channel.ChannelOption;
 import reactor.netty.http.client.HttpClient;
@@ -60,14 +58,6 @@ public class WebClientConfig {
     }
 
     @Bean
-    public WebClient ventasWebClient(WebClient.Builder builder) {
-        return builder
-                .baseUrl("http://localhost:8081")
-                .defaultHeader("Content-Type", "application/json")
-                .build();
-    }
-
-    @Bean
     public WebClient tesoreriaWebClient(WebClient.Builder builder) {
         // Fix S2S 2026-07-20: el pago de planilla (/treasury/api/payments/payroll) fallaba
         // silenciosamente con 401 — este bean no adjuntaba X-Internal-Token (a diferencia
@@ -88,11 +78,4 @@ public class WebClientConfig {
                 .build();
     }
 
-    @Bean
-    public VentasClient ventasClient(WebClient ventasWebClient) {
-        HttpServiceProxyFactory factory = HttpServiceProxyFactory
-                .builderFor(WebClientAdapter.create(ventasWebClient))
-                .build();
-        return factory.createClient(VentasClient.class);
-    }
 }
