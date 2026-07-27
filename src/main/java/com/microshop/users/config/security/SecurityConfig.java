@@ -2,6 +2,7 @@ package com.microshop.users.config.security;
 
 import com.microshop.users.shared.constants.AppConstants;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -34,7 +35,7 @@ public class SecurityConfig {
         private final JwtAuthenticationFilter jwtAuthFilter;
         private final UserDetailsService userDetailsService;
 
-        @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:4200}")
+        @Value("${app.cors.allowed-origins:http://localhost:4200}")
         private String allowedOriginsRaw;
 
         @Bean

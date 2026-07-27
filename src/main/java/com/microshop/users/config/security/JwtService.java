@@ -2,6 +2,7 @@ package com.microshop.users.config.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,7 +34,7 @@ public class JwtService {
     private String publicKeyPEM;
     private long jwtExpiration;
 
-    @jakarta.annotation.PostConstruct
+    @PostConstruct
     public void init() {
         this.privateKeyPEM = jwtProperties.privateKey();
         this.publicKeyPEM = jwtProperties.publicKey();

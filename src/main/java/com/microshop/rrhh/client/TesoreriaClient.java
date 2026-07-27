@@ -2,6 +2,7 @@ package com.microshop.rrhh.client;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -15,7 +16,7 @@ public class TesoreriaClient {
 
     private final WebClient webClient;
 
-    public TesoreriaClient(@org.springframework.beans.factory.annotation.Qualifier("tesoreriaWebClient") WebClient webClient) {
+    public TesoreriaClient(@Qualifier("tesoreriaWebClient") WebClient webClient) {
         this.webClient = webClient;
     }
 

@@ -7,13 +7,16 @@ import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.RolEntity;
 import com.microshop.users.infrastructure.persistence.entity.UsuarioEntity;
 import com.microshop.users.application.mapper.UserMapper;
+import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.infrastructure.persistence.repository.PersonaRepository;
 import com.microshop.users.infrastructure.persistence.repository.RolRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.BusinessException;
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,9 +79,9 @@ public class UserCommandService {
             // el rol SUPERADMIN en si mismo queda reservado a un caller que YA es SUPERADMIN —
             // si no, un ADMIN normal podria auto-otorgarse SUPERADMIN via este update generico,
             // saltandose la restriccion mas estricta del endpoint dedicado PUT /users/{id}/role.
-            if (com.microshop.users.shared.constants.AppConstants.Seguridad.SUPERADMIN.equalsIgnoreCase(rol.getNombre())
-                    && !com.microshop.users.config.security.SecurityContextUtils.isSuperAdmin()) {
-                throw new org.springframework.security.access.AccessDeniedException(
+            if (AppConstants.Seguridad.SUPERADMIN.equalsIgnoreCase(rol.getNombre())
+                    && !SecurityContextUtils.isSuperAdmin()) {
+                throw new AccessDeniedException(
                         "Solo un SUPERADMIN puede otorgar el rol SUPERADMIN");
             }
             usuario.setRol(rol);
