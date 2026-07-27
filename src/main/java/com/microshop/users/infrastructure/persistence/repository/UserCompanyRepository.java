@@ -18,4 +18,6 @@ public interface UserCompanyRepository extends JpaRepository<UserCompanyEntity, 
 
     @EntityGraph(attributePaths = { "roles", "roles.rol" })
     List<UserCompanyEntity> findByCompanyId(Long companyId);
+
+    long countByCompanyIdAndIsActiveTrue(Long companyId);
 }

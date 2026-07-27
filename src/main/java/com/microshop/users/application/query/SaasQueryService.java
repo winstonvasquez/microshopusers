@@ -73,7 +73,7 @@ public class SaasQueryService {
                 .filter(SaasPlanEntity::isActive)
                 .map(plan -> new SaasPlanDto(plan.getId(), plan.getCode(), plan.getName(),
                         plan.getDescription(), plan.getPriceMonthly(), plan.getPriceAnnual(),
-                        plan.getMaxUsers(), List.of()))
+                        plan.getMaxUsers(), planRepository.findModuleCodesByPlanId(plan.getId())))
                 .collect(Collectors.toList());
     }
 
