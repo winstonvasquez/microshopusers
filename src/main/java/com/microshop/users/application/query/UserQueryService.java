@@ -27,17 +27,28 @@ public class UserQueryService {
     private final PolicyRoleRepository policyRoleRepository;
     private final UserMapper userMapper;
 
+    /**
+     * Lista usuarios paginados. Si {@code companyId} es no-nulo, acota a esa empresa
+     * (defensa cross-tenant: un ADMIN normal no debe ver usuarios de otras empresas).
+     * Pasar {@code null} solo desde llamadas de SUPERADMIN.
+     */
     @Transactional(readOnly = true)
-    public Page<UserResponseDto> findAll(Pageable pageable) {
-        log.debug("Fetching users with pagination: {}", pageable);
-        return usuarioRepository.findAll(pageable)
-                .map(userMapper::toDto);
+    public Page<UserResponseDto> findAll(Pageable pageable, Long companyId) {
+        log.debug("Fetching users with pagination: {}, companyId={}", pageable, companyId);
+        Page<com.microshop.users.infrastructure.persistence.entity.UsuarioEntity> page = companyId != null
+                ? usuarioRepository.findByCompanyId(companyId, pageable)
+                : usuarioRepository.findAll(pageable);
+        return page.map(userMapper::toDto);
     }
 
+    /** Ver {@link #findAll(Pageable, Long)} — misma acotacion, sin paginar. */
     @Transactional(readOnly = true)
-    public List<UserResponseDto> findAll() {
-        log.debug("Fetching all users");
-        return usuarioRepository.findAll().stream()
+    public List<UserResponseDto> findAll(Long companyId) {
+        log.debug("Fetching all users, companyId={}", companyId);
+        var usuarios = companyId != null
+                ? usuarioRepository.findAllByCompanyId(companyId)
+                : usuarioRepository.findAll();
+        return usuarios.stream()
                 .map(userMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -70,9 +81,12 @@ public class UserQueryService {
      * y nombres/apellidos, que {@link UserResponseDto} no expone.
      */
     @Transactional(readOnly = true)
-    public List<UserExportRowDto> findAllForExport() {
-        log.debug("Fetching all users for export report");
-        return usuarioRepository.findAll().stream()
+    public List<UserExportRowDto> findAllForExport(Long companyId) {
+        log.debug("Fetching all users for export report, companyId={}", companyId);
+        var usuarios = companyId != null
+                ? usuarioRepository.findAllByCompanyId(companyId)
+                : usuarioRepository.findAll();
+        return usuarios.stream()
                 .map(u -> {
                     var persona = u.getPersona();
                     return new UserExportRowDto(

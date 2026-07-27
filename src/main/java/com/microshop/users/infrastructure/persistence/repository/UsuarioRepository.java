@@ -60,4 +60,20 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
      * BCrypt-match (los roles se siembran en mayúsculas: ADMIN/GERENTE/SUPERADMIN).
      */
     java.util.List<UsuarioEntity> findByPinHashIsNotNullAndRol_NombreIn(java.util.Collection<String> rolNombres);
+
+    /**
+     * Listado de usuarios acotado a UNA empresa (via user_company), paginado.
+     * Defensa cross-tenant: un ADMIN normal solo debe ver usuarios de su propia empresa,
+     * a diferencia de un SUPERADMIN que usa {@code findAll(Pageable)} sin acotar.
+     */
+    @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
+           "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
+           "WHERE uc.company.id = :companyId")
+    Page<UsuarioEntity> findByCompanyId(@Param("companyId") Long companyId, Pageable pageable);
+
+    /** Misma acotacion que {@link #findByCompanyId(Long, Pageable)} pero sin paginar. */
+    @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
+           "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
+           "WHERE uc.company.id = :companyId")
+    java.util.List<UsuarioEntity> findAllByCompanyId(@Param("companyId") Long companyId);
 }

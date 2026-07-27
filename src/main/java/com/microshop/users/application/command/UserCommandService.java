@@ -72,6 +72,15 @@ public class UserCommandService {
 
         if (!usuario.getRol().getId().equals(dto.rolId())) {
             var rol = findRol(dto.rolId());
+            // Aunque este endpoint acepta ADMIN o SUPERADMIN (ver SecurityConfig), otorgar
+            // el rol SUPERADMIN en si mismo queda reservado a un caller que YA es SUPERADMIN —
+            // si no, un ADMIN normal podria auto-otorgarse SUPERADMIN via este update generico,
+            // saltandose la restriccion mas estricta del endpoint dedicado PUT /users/{id}/role.
+            if (com.microshop.users.shared.constants.AppConstants.Seguridad.SUPERADMIN.equalsIgnoreCase(rol.getNombre())
+                    && !com.microshop.users.config.security.SecurityContextUtils.isSuperAdmin()) {
+                throw new org.springframework.security.access.AccessDeniedException(
+                        "Solo un SUPERADMIN puede otorgar el rol SUPERADMIN");
+            }
             usuario.setRol(rol);
         }
 
@@ -92,6 +101,28 @@ public class UserCommandService {
             throw new IllegalArgumentException(msg.get("user.not.found", id));
         }
         usuarioRepository.deleteById(id);
+    }
+
+    /**
+     * Cambia SOLO el rol de un usuario (endpoint dedicado, separado de {@link #updateUser}
+     * para poder proteger la asignacion de SUPERADMIN con una restriccion mas estricta
+     * que el resto del CRUD de usuarios — ver SecurityConfig).
+     */
+    @Transactional
+    public UserResponseDto changeRole(Long id, String rolNombre) {
+        log.info("Changing role for user {} to {}", id, rolNombre);
+
+        var usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("user.not.found"));
+
+        var rol = rolRepository.findByNombre(rolNombre)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("user.role.not.found", rolNombre)));
+
+        usuario.setRol(rol);
+        usuario = usuarioRepository.save(usuario);
+        log.info("Role changed successfully for user {}: now {}", id, rolNombre);
+
+        return userMapper.toDto(usuario);
     }
 
     @Transactional

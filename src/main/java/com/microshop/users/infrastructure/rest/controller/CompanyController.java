@@ -7,6 +7,7 @@ import com.microshop.users.infrastructure.persistence.entity.CompanyEntity;
 import com.microshop.users.application.mapper.CompanyMapper;
 import com.microshop.users.application.dto.*;
 import com.microshop.users.config.security.RequiresTenantAccess;
+import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.shared.constants.ApiPaths;
 import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.util.SpreadsheetExporter;
@@ -42,6 +43,21 @@ public class CompanyController {
     private final CompanyMapper companyMapper;
     private final SaasQueryService saasQueryService;
 
+    /**
+     * Resuelve el companyId a usar como scope de tenant: {@code null} SOLO para un SUPERADMIN
+     * (bypass intencional, sin acotar). Un ADMIN normal SIN companyId resoluble en el JWT
+     * es rechazado explícitamente — nunca cae a "sin acotar" por accidente (fail-closed, no fail-open).
+     */
+    private Long resolveTenantScope() {
+        if (SecurityContextUtils.isSuperAdmin()) return null;
+        Long companyId = SecurityContextUtils.currentCompanyId();
+        if (companyId == null) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "JWT sin claim companyId — no se puede acotar por tenant");
+        }
+        return companyId;
+    }
+
     @PostMapping
     @Operation(summary = "Crear empresa", description = "Registra una nueva empresa con su RUC")
     public ResponseEntity<CompanyResponseDto> createCompany(
@@ -51,9 +67,9 @@ public class CompanyController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar empresas", description = "Retorna todas las empresas registradas")
+    @Operation(summary = "Listar empresas", description = "Retorna todas las empresas registradas (SUPERADMIN) o solo la propia (ADMIN)")
     public ResponseEntity<List<CompanyResponseDto>> getAllCompanies() {
-        return ResponseEntity.ok(companyQueryService.findAll());
+        return ResponseEntity.ok(companyQueryService.findAll(resolveTenantScope()));
     }
 
     @GetMapping("/paged")
@@ -64,7 +80,7 @@ public class CompanyController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
-        return ResponseEntity.ok(companyQueryService.findPaged(search, active, pageable));
+        return ResponseEntity.ok(companyQueryService.findPaged(search, active, pageable, resolveTenantScope()));
     }
 
     @GetMapping("/export")
@@ -73,9 +89,10 @@ public class CompanyController {
             @RequestParam(defaultValue = "xlsx") String format,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active) {
-        // Trae TODAS las empresas que matcheen los mismos filtros que la lista (sin paginación real).
+        // Trae TODAS las empresas que matcheen los mismos filtros que la lista (sin paginación real),
+        // acotado por tenant salvo SUPERADMIN (mismo scope que getCompaniesPaged).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("name").ascending());
-        List<CompanyResponseDto> empresas = companyQueryService.findPaged(search, active, pageable).getContent();
+        List<CompanyResponseDto> empresas = companyQueryService.findPaged(search, active, pageable, resolveTenantScope()).getContent();
 
         List<String> cabeceras = List.of("Nombre", "RUC", "Razón Social", "Email", "Estado");
         List<List<Object>> filas = empresas.stream()

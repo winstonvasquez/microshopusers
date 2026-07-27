@@ -39,9 +39,25 @@ public class CompanyQueryService {
         return companyRepository.findAllProjected();
     }
 
+    /**
+     * Ver {@link #findAll()} pero acotado a UNA empresa cuando {@code companyId} es no-nulo.
+     * Defensa cross-tenant: un ADMIN normal solo debe ver su propia empresa, a diferencia
+     * de un SUPERADMIN que llama con {@code companyId=null}.
+     */
+    public List<CompanyResponseDto> findAll(Long companyId) {
+        if (companyId == null) return findAll();
+        return companyRepository.findProjectedById(companyId).map(List::of).orElseGet(List::of);
+    }
+
     public Page<CompanyResponseDto> findPaged(String search, Boolean active, Pageable pageable) {
         String term = AppUtils.searchTermOrNull(search);
         return companyRepository.searchPaged(term, active, pageable);
+    }
+
+    /** Ver {@link #findPaged(String, Boolean, Pageable)}, acotado a UNA empresa cuando {@code companyId} es no-nulo. */
+    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Pageable pageable, Long companyId) {
+        String term = AppUtils.searchTermOrNull(search);
+        return companyRepository.searchPagedScoped(term, active, companyId, pageable);
     }
 
     public Optional<CompanyResponseDto> findById(@NonNull Long id) {

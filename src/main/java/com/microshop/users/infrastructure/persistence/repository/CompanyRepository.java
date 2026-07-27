@@ -38,6 +38,22 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, Long> {
             "AND (:active IS NULL OR c.isActive = :active)")
     Page<CompanyResponseDto> searchPaged(@Param("search") String search, @Param("active") Boolean active, Pageable pageable);
 
+    /**
+     * Ver {@link #searchPaged}, acotado ademas a UNA empresa cuando {@code companyId} es no-nulo.
+     * Defensa cross-tenant: un ADMIN normal solo debe ver su propia empresa en el listado paginado
+     * (el mismo que consume la pagina "Empresas" del admin), a diferencia de un SUPERADMIN.
+     */
+    @Query(value = "SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c " +
+            "WHERE (:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR c.ruc LIKE CONCAT('%', :search, '%')) " +
+            "AND (:active IS NULL OR c.isActive = :active) " +
+            "AND (:companyId IS NULL OR c.id = :companyId)",
+           countQuery = "SELECT COUNT(c) FROM CompanyEntity c " +
+            "WHERE (:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR c.ruc LIKE CONCAT('%', :search, '%')) " +
+            "AND (:active IS NULL OR c.isActive = :active) " +
+            "AND (:companyId IS NULL OR c.id = :companyId)")
+    Page<CompanyResponseDto> searchPagedScoped(@Param("search") String search, @Param("active") Boolean active,
+            @Param("companyId") Long companyId, Pageable pageable);
+
     @Query("SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c WHERE c.id = :id")
     Optional<CompanyResponseDto> findProjectedById(@Param("id") Long id);
 }

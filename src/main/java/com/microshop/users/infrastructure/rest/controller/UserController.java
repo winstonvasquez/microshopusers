@@ -4,10 +4,12 @@ import com.microshop.users.application.command.AuthCommandService;
 import com.microshop.users.application.command.UserCommandService;
 import com.microshop.users.application.query.UserQueryService;
 import com.microshop.users.application.dto.ChangePasswordRequest;
+import com.microshop.users.application.dto.ChangeRoleRequest;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.UserExportRowDto;
 import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
+import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.shared.constants.ApiPaths;
 import com.microshop.users.shared.util.SpreadsheetExporter;
 
@@ -49,12 +51,27 @@ public class UserController {
     private final UserQueryService userQueryService;
     private final AuthCommandService authCommandService;
 
+    /**
+     * Resuelve el companyId a usar como scope de tenant: {@code null} SOLO para un SUPERADMIN
+     * (bypass intencional, sin acotar). Un usuario normal SIN companyId resoluble en el JWT
+     * es rechazado explícitamente — nunca cae a "sin acotar" por accidente (fail-closed, no fail-open).
+     */
+    private Long resolveTenantScope() {
+        if (SecurityContextUtils.isSuperAdmin()) return null;
+        Long companyId = SecurityContextUtils.currentCompanyId();
+        if (companyId == null) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "JWT sin claim companyId — no se puede acotar por tenant");
+        }
+        return companyId;
+    }
+
     @GetMapping
     @Operation(summary = "Listar usuarios paginados")
     public ResponseEntity<Page<UserResponseDto>> getAllUsers(
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         log.info("GET /api/users - Obteniendo usuarios con paginación");
-        Page<UserResponseDto> users = userQueryService.findAll(pageable);
+        Page<UserResponseDto> users = userQueryService.findAll(pageable, resolveTenantScope());
         return ResponseEntity.ok(users);
     }
 
@@ -62,16 +79,16 @@ public class UserController {
     @Operation(summary = "Listar todos los usuarios sin paginación")
     public ResponseEntity<List<UserResponseDto>> getAllUsersNoPagination() {
         log.info("GET /api/users/all - Obteniendo todos los usuarios");
-        List<UserResponseDto> users = userQueryService.findAll();
+        List<UserResponseDto> users = userQueryService.findAll(resolveTenantScope());
         return ResponseEntity.ok(users);
     }
 
     @GetMapping("/report/export")
     @Operation(summary = "Exportar reporte de clientes/usuarios (admin/reportes) a XLSX o CSV — mismas columnas que la vista")
     public ResponseEntity<byte[]> exportReporteClientes(@RequestParam(defaultValue = "xlsx") String format) {
-        // Replica exactamente lo que arma admin/pages/reportes/reportes-clientes.component.ts:
-        // todos los usuarios del sistema (sin filtros server-side, igual que getAllUsersNoPagination()).
-        List<UserExportRowDto> usuarios = userQueryService.findAllForExport();
+        // Replica exactamente lo que arma admin/pages/reportes/reportes-clientes.component.ts,
+        // acotado a la empresa del caller salvo que sea SUPERADMIN (ver getAllUsersNoPagination()).
+        List<UserExportRowDto> usuarios = userQueryService.findAllForExport(resolveTenantScope());
 
         DateTimeFormatter fechaFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy").withZone(ZoneId.systemDefault());
 
@@ -153,6 +170,16 @@ public class UserController {
         log.info("DELETE /api/users/{} - Eliminando usuario", id);
         userCommandService.deleteUser(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/role")
+    @Operation(summary = "Cambiar el rol de un usuario", description = "Restringido a SUPERADMIN — permite otorgar/revocar SUPERADMIN u otros roles cross-tenant.")
+    public ResponseEntity<UserResponseDto> changeRole(
+            @PathVariable @NonNull Long id,
+            @RequestBody @Valid ChangeRoleRequest request) {
+        log.info("PUT /api/users/{}/role - Cambiando rol a {}", id, request.roleCode());
+        UserResponseDto updated = userCommandService.changeRole(id, request.roleCode());
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/by-rol/{rolId}")

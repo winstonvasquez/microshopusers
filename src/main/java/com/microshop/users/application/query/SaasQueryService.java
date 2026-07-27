@@ -77,6 +77,15 @@ public class SaasQueryService {
                 .collect(Collectors.toList());
     }
 
+    /** Ver {@link #getAllPlans()} pero incluye planes inactivos — solo para el panel admin (SUPERADMIN). */
+    public List<com.microshop.users.application.dto.SaasPlanAdminDto> getAllPlansForAdmin() {
+        return planRepository.findAll().stream()
+                .map(plan -> new com.microshop.users.application.dto.SaasPlanAdminDto(plan.getId(), plan.getCode(), plan.getName(),
+                        plan.getDescription(), plan.getPriceMonthly(), plan.getPriceAnnual(),
+                        plan.getMaxUsers(), planRepository.findModuleCodesByPlanId(plan.getId()), plan.isActive()))
+                .collect(Collectors.toList());
+    }
+
     public CompanyProfileDto getCompanyProfile(Long companyId) {
         CompanyEntity company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new IllegalArgumentException("Company not found: " + companyId));
