@@ -10,16 +10,21 @@ import com.microshop.rrhh.application.dto.vacation.VacationRequestDto;
 import com.microshop.rrhh.application.dto.vacation.VacationResponseDto;
 import com.microshop.rrhh.application.query.*;
 import com.microshop.rrhh.application.command.VacationCommandService;
+import com.microshop.rrhh.domain.model.Attendance;
+import com.microshop.rrhh.domain.model.Payroll;
+import com.microshop.rrhh.domain.model.VacationRequest;
 import com.microshop.rrhh.shared.constants.ApiPaths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
 
 import java.util.List;
@@ -52,17 +57,19 @@ public class SelfServiceController {
     }
 
     @GetMapping("/payslips")
-    @Operation(summary = "Obtener boletas de pago del empleado actual")
-    public ResponseEntity<List<PayrollResponseDto>> getMyPayslips() {
+    @Operation(summary = "Obtener boletas de pago del empleado actual, con filtro opcional de estado")
+    public ResponseEntity<List<PayrollResponseDto>> getMyPayslips(
+            @RequestParam(required = false) Payroll.PayrollStatus estado) {
         Long employeeId = resolveCurrentEmployeeId();
-        return ResponseEntity.ok(payrollQueryService.getByEmployee(employeeId));
+        return ResponseEntity.ok(payrollQueryService.getByEmployee(employeeId, estado));
     }
 
     @GetMapping("/vacations")
-    @Operation(summary = "Obtener solicitudes de vacaciones del empleado actual")
-    public ResponseEntity<List<VacationResponseDto>> getMyVacations() {
+    @Operation(summary = "Obtener solicitudes de vacaciones del empleado actual, con filtro opcional de estado")
+    public ResponseEntity<List<VacationResponseDto>> getMyVacations(
+            @RequestParam(required = false) VacationRequest.VacationStatus estado) {
         Long employeeId = resolveCurrentEmployeeId();
-        return ResponseEntity.ok(vacationQueryService.getByEmployee(employeeId));
+        return ResponseEntity.ok(vacationQueryService.getByEmployee(employeeId, estado));
     }
 
     @PostMapping("/vacations")
@@ -72,10 +79,17 @@ public class SelfServiceController {
     }
 
     @GetMapping("/attendance")
-    @Operation(summary = "Obtener asistencia del empleado actual")
+    @Operation(summary = "Obtener asistencia del empleado actual. Acepta 'month' (legado) O un rango "
+            + "fechaDesde/fechaHasta + tipoRegistro (filtros avanzados); si se envía el rango, este tiene prioridad.")
     public ResponseEntity<List<AttendanceResponseDto>> getMyAttendance(
-            @RequestParam String month) {
+            @RequestParam(required = false) String month,
+            @RequestParam(required = false) Attendance.AttendanceType tipoRegistro,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
         Long employeeId = resolveCurrentEmployeeId();
+        if (fechaDesde != null || fechaHasta != null || tipoRegistro != null) {
+            return ResponseEntity.ok(attendanceQueryService.getMyAttendanceFiltered(employeeId, tipoRegistro, fechaDesde, fechaHasta));
+        }
         YearMonth ym = YearMonth.parse(month);
         return ResponseEntity.ok(attendanceQueryService.getMonthlyReport(employeeId, ym));
     }

@@ -11,6 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,6 +20,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -90,15 +95,26 @@ public class ClienteCreditController {
     }
 
     @GetMapping("/history")
-    @Operation(summary = "Historial paginado de movimientos de crédito")
+    @Operation(summary = "Historial paginado de movimientos de crédito, con filtro de tipo y rango de fecha")
     public ResponseEntity<Page<TransactionResponse>> getHistory(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
-            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size) {
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
 
         Long userId = resolveUserId(userDetails.getUsername());
+        // createdAt es Instant -> convertir el LocalDate del date-range del frontend a
+        // inicio/fin de día en la zona del servidor (mismo patrón que ProductoController).
+        Instant desde = fechaDesde != null
+                ? fechaDesde.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
+        Instant hasta = fechaHasta != null
+                ? fechaHasta.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
+
         Page<TransactionResponse> result = txRepo
-                .findByCreditAccount_ClienteIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
+                .searchPaged(userId, type, desde, hasta,
+                        PageRequest.of(page, size, Sort.by("createdAt").descending()))
                 .map(t -> new TransactionResponse(
                         t.getId(), t.getType(), t.getAmount(),
                         t.getBalanceBefore(), t.getBalanceAfter(),

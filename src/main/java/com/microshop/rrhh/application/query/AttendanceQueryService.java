@@ -8,6 +8,8 @@ import com.microshop.rrhh.domain.model.Attendance;
 import com.microshop.rrhh.infrastructure.persistence.repository.AttendanceRepository;
 import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -101,17 +103,43 @@ public class AttendanceQueryService {
     }
 
     /**
-     * Datos para exportación server-side (XLSX/CSV): mismos filtros que la lista del
-     * frontend (fecha exacta + tipo de registro), sin paginación real.
+     * Listado avanzado paginado con filtros opcionales de búsqueda, empleado, departamento,
+     * tipo de registro, aprobador y rango de fechas. Sustituye el filtrado/paginación 100%
+     * client-side que hacía el componente Angular sobre el día cargado por /date/{fecha}.
      */
-    public List<AttendanceResponseDto> getAttendanceForExport(LocalDate fecha, Attendance.AttendanceType tipoRegistro) {
+    public Page<AttendanceResponseDto> getAttendancePaged(String search, Long employeeId, Long departmentId,
+            Attendance.AttendanceType tipoRegistro, Long aprobadoPorId,
+            LocalDate fechaDesde, LocalDate fechaHasta, Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
-        List<Attendance> registros = fecha != null
-                ? attendanceRepository.findByTenantIdAndFecha(tenantId, fecha)
-                : attendanceRepository.findByTenantIdOrderByFechaDesc(tenantId);
+        String term = AppUtils.searchTermOrNull(search);
+        return attendanceRepository.searchPaged(tenantId, term, employeeId, departmentId, tipoRegistro,
+                        aprobadoPorId, fechaDesde, fechaHasta, pageable)
+                .map(attendanceMapper::toDto);
+    }
 
-        return registros.stream()
-                .filter(a -> tipoRegistro == null || a.getTipoRegistro() == tipoRegistro)
+    /** Ver {@link #getAttendancePaged} — mismos filtros, sin paginar, para exportación server-side. */
+    public List<AttendanceResponseDto> getAttendanceForExport(String search, Long employeeId, Long departmentId,
+            Attendance.AttendanceType tipoRegistro, Long aprobadoPorId,
+            LocalDate fechaDesde, LocalDate fechaHasta) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        String term = AppUtils.searchTermOrNull(search);
+        return attendanceRepository.searchAllForExport(tenantId, term, employeeId, departmentId, tipoRegistro,
+                        aprobadoPorId, fechaDesde, fechaHasta)
+                .stream()
+                .map(attendanceMapper::toDto)
+                .toList();
+    }
+
+    /**
+     * Autoservicio ("Mi Asistencia"): asistencia del empleado actual con filtros opcionales
+     * de tipo de registro y rango de fechas, en vez de un mes exacto. Ver
+     * {@link SelfServiceController} / AttendanceRepository.findByTenantIdAndEmployeeIdFiltered.
+     */
+    public List<AttendanceResponseDto> getMyAttendanceFiltered(Long employeeId, Attendance.AttendanceType tipoRegistro,
+            LocalDate fechaDesde, LocalDate fechaHasta) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        return attendanceRepository.findByTenantIdAndEmployeeIdFiltered(tenantId, employeeId, tipoRegistro, fechaDesde, fechaHasta)
+                .stream()
                 .map(attendanceMapper::toDto)
                 .toList();
     }

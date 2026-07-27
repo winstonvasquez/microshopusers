@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -22,6 +23,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,14 +40,22 @@ public class DepartmentController {
     private final DepartmentQueryService departmentQueryService;
 
     @GetMapping("/paged")
+    @Operation(summary = "Listar departamentos paginado con filtros avanzados: estado, jefe, departamento padre y rango de fecha de creación")
     public ResponseEntity<Page<DepartmentResponseDto>> getDepartmentsPaged(
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sort,
-            @RequestParam(required = false) Boolean activo) {
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) Long managerId,
+            @RequestParam(required = false) Long parentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtHasta) {
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
-        return ResponseEntity.ok(departmentQueryService.getDepartmentsPaged(search, activo, pageable));
+        LocalDateTime desde = createdAtDesde != null ? createdAtDesde.atStartOfDay() : null;
+        LocalDateTime hasta = createdAtHasta != null ? createdAtHasta.atTime(LocalTime.MAX) : null;
+        return ResponseEntity.ok(departmentQueryService
+                .getDepartmentsPaged(search, activo, managerId, parentId, desde, hasta, pageable));
     }
 
     /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
@@ -107,10 +119,17 @@ public class DepartmentController {
     public ResponseEntity<byte[]> exportDepartments(
             @RequestParam(defaultValue = "xlsx") String format,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean activo) {
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) Long managerId,
+            @RequestParam(required = false) Long parentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtHasta) {
+        LocalDateTime desde = createdAtDesde != null ? createdAtDesde.atStartOfDay() : null;
+        LocalDateTime hasta = createdAtHasta != null ? createdAtHasta.atTime(LocalTime.MAX) : null;
         // Trae TODOS los departamentos que matcheen los mismos filtros que la lista (sin paginación real).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("nombre").ascending());
-        List<DepartmentResponseDto> departamentos = departmentQueryService.getDepartmentsPaged(search, activo, pageable).getContent();
+        List<DepartmentResponseDto> departamentos = departmentQueryService
+                .getDepartmentsPaged(search, activo, managerId, parentId, desde, hasta, pageable).getContent();
 
         List<String> cabeceras = List.of("Código", "Nombre", "Dept. Padre", "Jefe", "Empleados", "Puestos", "Estado");
         List<List<Object>> filas = departamentos.stream()

@@ -2,6 +2,7 @@ package com.microshop.rrhh.application.query;
 
 import com.microshop.rrhh.application.dto.employee.EmployeeResponseDto;
 import com.microshop.rrhh.application.mapper.EmployeeMapper;
+import com.microshop.rrhh.domain.model.Contract;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeRepository;
 import com.microshop.rrhh.config.security.TenantContext;
@@ -67,10 +68,32 @@ public class EmployeeQueryService {
     public Page<EmployeeResponseDto> getEmployeesPaged(String search, Employee.EmployeeStatus estado,
                                                         Long departmentId, LocalDate fechaIngresoDesde,
                                                         LocalDate fechaIngresoHasta, Pageable pageable) {
+        return getEmployeesPaged(search, estado, departmentId, null, null, null, null, null, null, null, null,
+                fechaIngresoDesde, fechaIngresoHasta, null, null, null, null, pageable);
+    }
+
+    /**
+     * Listado paginado server-side con TODOS los filtros avanzados (2026-07-27): búsqueda, estado,
+     * departamento, puesto, supervisor, tipo de documento, sistema previsional, AFP, género, estado
+     * civil, tipo de contrato vigente y rangos de fecha de ingreso / salida / nacimiento.
+     */
+    public Page<EmployeeResponseDto> getEmployeesPaged(String search, Employee.EmployeeStatus estado,
+                                                        Long departmentId, Long positionId, Long supervisorId,
+                                                        String tipoDocumento, String sistemaPrevisional, String afpNombre,
+                                                        Employee.Gender genero, Employee.MaritalStatus estadoCivil,
+                                                        Contract.ContractType tipoContrato,
+                                                        LocalDate fechaIngresoDesde, LocalDate fechaIngresoHasta,
+                                                        LocalDate fechaSalidaDesde, LocalDate fechaSalidaHasta,
+                                                        LocalDate fechaNacimientoDesde, LocalDate fechaNacimientoHasta,
+                                                        Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
         String term = AppUtils.searchTermOrNull(search);
-        return employeeRepository.searchPaged(tenantId, term, estado, departmentId,
-                        fechaIngresoDesde, fechaIngresoHasta, pageable)
+        return employeeRepository.searchPaged(tenantId, term, estado, departmentId, positionId, supervisorId,
+                        AppUtils.searchTermOrNull(tipoDocumento), AppUtils.searchTermOrNull(sistemaPrevisional),
+                        AppUtils.searchTermOrNull(afpNombre), genero, estadoCivil,
+                        tipoContrato, Contract.ContractStatus.ACTIVO,
+                        fechaIngresoDesde, fechaIngresoHasta, fechaSalidaDesde, fechaSalidaHasta,
+                        fechaNacimientoDesde, fechaNacimientoHasta, pageable)
                 .map(employeeMapper::toDto);
     }
 

@@ -44,6 +44,8 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     long countExpiringBefore(@Param("tenantId") Long tenantId, @Param("fecha") LocalDate fecha);
 
     // Page + solo ManyToOne (sin colecciones) → seguro con paginación.
+    // Filtros avanzados (2026-07-27): jornada laboral, moneda, empleado, departamento (vía
+    // employee.department, sin JOIN real: solo lee la FK) y rangos de fecha de inicio/fin.
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT c FROM Contract c WHERE c.tenantId = :tenantId " +
            "AND (:search IS NULL OR :search = '' OR " +
@@ -51,10 +53,26 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
            "  LOWER(c.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "  LOWER(c.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND (:estado IS NULL OR c.estado = :estado) " +
-           "AND (:tipo IS NULL OR c.tipoContrato = :tipo)")
+           "AND (:tipo IS NULL OR c.tipoContrato = :tipo) " +
+           "AND (:jornada IS NULL OR c.jornadaLaboral = :jornada) " +
+           "AND (:moneda IS NULL OR :moneda = '' OR c.moneda = :moneda) " +
+           "AND (:employeeId IS NULL OR c.employee.id = :employeeId) " +
+           "AND (:departmentId IS NULL OR c.employee.department.id = :departmentId) " +
+           "AND (:fechaInicioDesde IS NULL OR c.fechaInicio >= :fechaInicioDesde) " +
+           "AND (:fechaInicioHasta IS NULL OR c.fechaInicio <= :fechaInicioHasta) " +
+           "AND (:fechaFinDesde IS NULL OR c.fechaFin >= :fechaFinDesde) " +
+           "AND (:fechaFinHasta IS NULL OR c.fechaFin <= :fechaFinHasta)")
     Page<Contract> searchPaged(@Param("tenantId") Long tenantId,
                                @Param("search") String search,
                                @Param("estado") Contract.ContractStatus estado,
                                @Param("tipo") Contract.ContractType tipo,
+                               @Param("jornada") Contract.WorkingDay jornada,
+                               @Param("moneda") String moneda,
+                               @Param("employeeId") Long employeeId,
+                               @Param("departmentId") Long departmentId,
+                               @Param("fechaInicioDesde") LocalDate fechaInicioDesde,
+                               @Param("fechaInicioHasta") LocalDate fechaInicioHasta,
+                               @Param("fechaFinDesde") LocalDate fechaFinDesde,
+                               @Param("fechaFinHasta") LocalDate fechaFinHasta,
                                Pageable pageable);
 }

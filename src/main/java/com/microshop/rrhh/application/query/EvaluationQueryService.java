@@ -6,6 +6,7 @@ import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.PerformanceEvaluation;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,15 +54,30 @@ public class EvaluationQueryService {
                 .toList();
     }
 
-    /** Listado paginado server-side con filtros opcionales de estado, tipo y rango de fecha de evaluación. */
-    public Page<EvaluationResponseDto> getAllPaged(PerformanceEvaluation.EvaluationStatus estado,
+    /**
+     * Listado paginado server-side con filtros opcionales de búsqueda por texto, estado, tipo,
+     * empleado evaluado, evaluador, departamento, periodo y rangos de fecha de evaluación /
+     * próxima revisión.
+     */
+    public Page<EvaluationResponseDto> getAllPaged(String search,
+                                                    PerformanceEvaluation.EvaluationStatus estado,
                                                     PerformanceEvaluation.EvaluationType tipo,
+                                                    Long employeeId,
+                                                    Long evaluadorId,
+                                                    Long departmentId,
+                                                    String periodo,
                                                     LocalDate fechaEvaluacionDesde,
                                                     LocalDate fechaEvaluacionHasta,
+                                                    LocalDate proximaRevisionDesde,
+                                                    LocalDate proximaRevisionHasta,
                                                     Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
+        String term = AppUtils.searchTermOrNull(search);
+        String periodoTerm = AppUtils.searchTermOrNull(periodo);
         return evaluationRepository.findFiltered(
-                        tenantId, estado, tipo, fechaEvaluacionDesde, fechaEvaluacionHasta, pageable)
+                        tenantId, term, estado, tipo, employeeId, evaluadorId, departmentId, periodoTerm,
+                        fechaEvaluacionDesde, fechaEvaluacionHasta, proximaRevisionDesde, proximaRevisionHasta,
+                        pageable)
                 .map(evaluationMapper::toDto);
     }
 
@@ -93,5 +109,13 @@ public class EvaluationQueryService {
         return criteriaRepository.findByIdAndTenantId(id, tenantId)
                 .map(evaluationMapper::toCriteriaDto)
                 .orElseThrow(() -> new NotFoundException("Criterio no encontrado"));
+    }
+
+    /** Listado paginado server-side de criterios con búsqueda por texto y filtro de estado. */
+    public Page<EvaluationCriteriaResponseDto> getCriteriaPaged(String search, Boolean activo, Pageable pageable) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        String term = AppUtils.searchTermOrNull(search);
+        return criteriaRepository.searchPaged(tenantId, term, activo, pageable)
+                .map(evaluationMapper::toCriteriaDto);
     }
 }

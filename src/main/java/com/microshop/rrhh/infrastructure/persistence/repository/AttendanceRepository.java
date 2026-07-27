@@ -1,6 +1,8 @@
 package com.microshop.rrhh.infrastructure.persistence.repository;
 
 import com.microshop.rrhh.domain.model.Attendance;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -45,4 +47,74 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     // Export server-side (sin filtro de fecha): trae todo el tenant con employee ya cargado (evita N+1 en el mapper).
     @EntityGraph(attributePaths = "employee")
     List<Attendance> findByTenantIdOrderByFechaDesc(Long tenantId);
+
+    /**
+     * Listado avanzado con filtros opcionales: búsqueda por texto (empleado/observaciones),
+     * empleado, departamento (vía employee.department), tipo de registro, aprobador y rango
+     * de fechas. Reemplaza el filtrado 100% client-side que hacía el componente Angular sobre
+     * un único día cargado (patrón "(:x IS NULL OR ...)", vara de medir: EmployeeRepository.searchPaged).
+     */
+    @EntityGraph(attributePaths = "employee")
+    @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId " +
+           "AND (:search IS NULL OR :search = '' " +
+           "     OR LOWER(a.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(a.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(a.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(a.observaciones) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:employeeId IS NULL OR a.employee.id = :employeeId) " +
+           "AND (:departmentId IS NULL OR a.employee.department.id = :departmentId) " +
+           "AND (:tipoRegistro IS NULL OR a.tipoRegistro = :tipoRegistro) " +
+           "AND (:aprobadoPorId IS NULL OR a.aprobadoPor.id = :aprobadoPorId) " +
+           "AND (:fechaDesde IS NULL OR a.fecha >= :fechaDesde) " +
+           "AND (:fechaHasta IS NULL OR a.fecha <= :fechaHasta)")
+    Page<Attendance> searchPaged(@Param("tenantId") Long tenantId,
+            @Param("search") String search,
+            @Param("employeeId") Long employeeId,
+            @Param("departmentId") Long departmentId,
+            @Param("tipoRegistro") Attendance.AttendanceType tipoRegistro,
+            @Param("aprobadoPorId") Long aprobadoPorId,
+            @Param("fechaDesde") LocalDate fechaDesde,
+            @Param("fechaHasta") LocalDate fechaHasta,
+            Pageable pageable);
+
+    /**
+     * Autoservicio ("Mi Asistencia"): asistencia de UN empleado con filtros opcionales de
+     * tipo de registro y rango de fechas (sustituye el mes exacto). Scoped por tenant +
+     * employeeId (riesgo cross-tenant nulo, ver SelfServiceController.resolveCurrentEmployeeId).
+     */
+    @EntityGraph(attributePaths = "employee")
+    @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId AND a.employee.id = :employeeId " +
+           "AND (:tipoRegistro IS NULL OR a.tipoRegistro = :tipoRegistro) " +
+           "AND (:fechaDesde IS NULL OR a.fecha >= :fechaDesde) " +
+           "AND (:fechaHasta IS NULL OR a.fecha <= :fechaHasta) " +
+           "ORDER BY a.fecha DESC")
+    List<Attendance> findByTenantIdAndEmployeeIdFiltered(@Param("tenantId") Long tenantId,
+            @Param("employeeId") Long employeeId,
+            @Param("tipoRegistro") Attendance.AttendanceType tipoRegistro,
+            @Param("fechaDesde") LocalDate fechaDesde,
+            @Param("fechaHasta") LocalDate fechaHasta);
+
+    /** Ver {@link #searchPaged} — misma query sin paginar, para exportación server-side. */
+    @EntityGraph(attributePaths = "employee")
+    @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId " +
+           "AND (:search IS NULL OR :search = '' " +
+           "     OR LOWER(a.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(a.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(a.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(a.observaciones) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (:employeeId IS NULL OR a.employee.id = :employeeId) " +
+           "AND (:departmentId IS NULL OR a.employee.department.id = :departmentId) " +
+           "AND (:tipoRegistro IS NULL OR a.tipoRegistro = :tipoRegistro) " +
+           "AND (:aprobadoPorId IS NULL OR a.aprobadoPor.id = :aprobadoPorId) " +
+           "AND (:fechaDesde IS NULL OR a.fecha >= :fechaDesde) " +
+           "AND (:fechaHasta IS NULL OR a.fecha <= :fechaHasta) " +
+           "ORDER BY a.fecha DESC")
+    List<Attendance> searchAllForExport(@Param("tenantId") Long tenantId,
+            @Param("search") String search,
+            @Param("employeeId") Long employeeId,
+            @Param("departmentId") Long departmentId,
+            @Param("tipoRegistro") Attendance.AttendanceType tipoRegistro,
+            @Param("aprobadoPorId") Long aprobadoPorId,
+            @Param("fechaDesde") LocalDate fechaDesde,
+            @Param("fechaHasta") LocalDate fechaHasta);
 }

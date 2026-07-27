@@ -79,7 +79,18 @@ public class SaasQueryService {
 
     /** Ver {@link #getAllPlans()} pero incluye planes inactivos — solo para el panel admin (SUPERADMIN). */
     public List<com.microshop.users.application.dto.SaasPlanAdminDto> getAllPlansForAdmin() {
-        return planRepository.findAll().stream()
+        return getAllPlansForAdmin(null, null, null);
+    }
+
+    /**
+     * Ver {@link #getAllPlansForAdmin()} con filtros avanzados opcionales: búsqueda por texto
+     * (código/nombre/descripción), estado activo/inactivo y módulo incluido en el plan.
+     */
+    public List<com.microshop.users.application.dto.SaasPlanAdminDto> getAllPlansForAdmin(
+            String search, Boolean isActive, String moduleCode) {
+        String term = com.microshop.users.shared.util.AppUtils.searchTermOrNull(search);
+        String module = com.microshop.users.shared.util.AppUtils.searchTermOrNull(moduleCode);
+        return planRepository.searchPlans(term, isActive, module).stream()
                 .map(plan -> new com.microshop.users.application.dto.SaasPlanAdminDto(plan.getId(), plan.getCode(), plan.getName(),
                         plan.getDescription(), plan.getPriceMonthly(), plan.getPriceAnnual(),
                         plan.getMaxUsers(), planRepository.findModuleCodesByPlanId(plan.getId()), plan.isActive()))

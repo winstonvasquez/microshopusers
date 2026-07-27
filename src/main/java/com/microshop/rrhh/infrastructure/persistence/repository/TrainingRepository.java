@@ -27,14 +27,26 @@ public interface TrainingRepository extends JpaRepository<Training, Long> {
     @Query("SELECT COALESCE(SUM(t.duracionHoras), 0) FROM Training t WHERE t.tenantId = :tenantId AND t.estado = :estado")
     long sumDuracionHorasByTenantIdAndEstado(@Param("tenantId") Long tenantId, @Param("estado") Training.TrainingStatus estado);
 
-    // Listado paginado server-side con filtro de estado + rango de fecha de inicio opcionales.
+    // Listado paginado server-side: estado + rango fechaInicio/fechaFin + búsqueda por texto + instructor.
+    // ':search = ''' en vez de 'IS NULL' para el bind String (mismo gotcha documentado en microshopventas).
     @Query("SELECT t FROM Training t WHERE t.tenantId = :tenantId " +
            "AND (:estado IS NULL OR t.estado = :estado) " +
+           "AND (:instructor = '' OR t.instructor = :instructor) " +
+           "AND (:search = '' " +
+           "     OR LOWER(t.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(t.instructor) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "     OR LOWER(t.descripcion) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND (:fechaInicioDesde IS NULL OR t.fechaInicio >= :fechaInicioDesde) " +
-           "AND (:fechaInicioHasta IS NULL OR t.fechaInicio <= :fechaInicioHasta)")
+           "AND (:fechaInicioHasta IS NULL OR t.fechaInicio <= :fechaInicioHasta) " +
+           "AND (:fechaFinDesde IS NULL OR t.fechaFin >= :fechaFinDesde) " +
+           "AND (:fechaFinHasta IS NULL OR t.fechaFin <= :fechaFinHasta)")
     Page<Training> searchPaged(@Param("tenantId") Long tenantId,
+                                @Param("search") String search,
                                 @Param("estado") Training.TrainingStatus estado,
+                                @Param("instructor") String instructor,
                                 @Param("fechaInicioDesde") LocalDate fechaInicioDesde,
                                 @Param("fechaInicioHasta") LocalDate fechaInicioHasta,
+                                @Param("fechaFinDesde") LocalDate fechaFinDesde,
+                                @Param("fechaFinHasta") LocalDate fechaFinHasta,
                                 Pageable pageable);
 }

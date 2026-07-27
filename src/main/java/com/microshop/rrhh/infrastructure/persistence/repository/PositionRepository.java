@@ -39,9 +39,13 @@ public interface PositionRepository extends JpaRepository<Position, Long> {
            "AND (:search IS NULL OR :search = '' OR " +
            "  LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "  LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:departmentId IS NULL OR p.department.id = :departmentId)")
+           "AND (:departmentId IS NULL OR p.department.id = :departmentId) " +
+           "AND (:activo IS NULL OR p.activo = :activo) " +
+           "AND (:nivel IS NULL OR :nivel = '' OR p.nivel = :nivel)")
     Page<Position> searchPaged(@Param("tenantId") Long tenantId,
                                @Param("search") String search,
                                @Param("departmentId") Long departmentId,
+                               @Param("activo") Boolean activo,
+                               @Param("nivel") String nivel,
                                Pageable pageable);
 }

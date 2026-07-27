@@ -41,9 +41,11 @@ public class PositionController {
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Long departmentId) {
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) String nivel) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
-        return ResponseEntity.ok(positionQueryService.getPositionsPaged(search, departmentId, pageable));
+        return ResponseEntity.ok(positionQueryService.getPositionsPaged(search, departmentId, activo, nivel, pageable));
     }
 
     @GetMapping
@@ -81,10 +83,12 @@ public class PositionController {
     public ResponseEntity<byte[]> exportPositions(
             @RequestParam(defaultValue = "xlsx") String format,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Long departmentId) {
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) String nivel) {
         // Trae TODOS los puestos que matcheen los mismos filtros que la lista (sin paginación real).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("nombre").ascending());
-        List<PositionResponseDto> puestos = positionQueryService.getPositionsPaged(search, departmentId, pageable).getContent();
+        List<PositionResponseDto> puestos = positionQueryService.getPositionsPaged(search, departmentId, activo, nivel, pageable).getContent();
 
         List<String> cabeceras = List.of("Código", "Nombre", "Departamento", "Nivel", "Rango Salarial", "Empleados", "Estado");
         List<List<Object>> filas = puestos.stream()

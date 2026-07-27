@@ -11,6 +11,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -59,6 +62,22 @@ public class AttendanceController {
         return ResponseEntity.ok(attendanceQueryService.getAttendanceByDate(fecha));
     }
 
+    @GetMapping("/paged")
+    @Operation(summary = "Listar asistencia paginada con filtros avanzados (búsqueda, empleado, departamento, "
+            + "tipo de registro, aprobador y rango de fechas) — server-side, reemplaza el filtrado client-side")
+    public ResponseEntity<Page<AttendanceResponseDto>> getAttendancePaged(
+            @PageableDefault(size = 20, sort = "fecha", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Attendance.AttendanceType tipoRegistro,
+            @RequestParam(required = false) Long aprobadoPorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
+        return ResponseEntity.ok(attendanceQueryService.getAttendancePaged(
+                search, employeeId, departmentId, tipoRegistro, aprobadoPorId, fechaDesde, fechaHasta, pageable));
+    }
+
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Listar asistencia de un empleado")
     public ResponseEntity<List<AttendanceResponseDto>> getByEmployee(@PathVariable Long employeeId) {
@@ -84,13 +103,20 @@ public class AttendanceController {
     private static final DateTimeFormatter FECHA_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @GetMapping("/export")
-    @Operation(summary = "Exportar asistencia a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
+    @Operation(summary = "Exportar asistencia a XLSX o CSV (generado en el backend, datos limpios sin HTML), "
+            + "con los mismos filtros avanzados que /paged")
     public ResponseEntity<byte[]> exportAttendance(
             @RequestParam(defaultValue = "xlsx") String format,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
-            @RequestParam(required = false) Attendance.AttendanceType tipo) {
-        // Mismos filtros que la lista del frontend (fecha exacta + tipoRegistro), sin paginación real.
-        List<AttendanceResponseDto> registros = attendanceQueryService.getAttendanceForExport(fecha, tipo);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Attendance.AttendanceType tipo,
+            @RequestParam(required = false) Long aprobadoPorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
+        // Mismos filtros que /paged (search+empleado+departamento+tipo+aprobador+rango de fechas), sin paginación real.
+        List<AttendanceResponseDto> registros = attendanceQueryService.getAttendanceForExport(
+                search, employeeId, departmentId, tipo, aprobadoPorId, fechaDesde, fechaHasta);
 
         List<String> cabeceras = List.of("Empleado", "Fecha", "Entrada", "Salida", "Tipo", "Observaciones");
         List<List<Object>> filas = registros.stream()

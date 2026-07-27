@@ -4,17 +4,25 @@ import com.microshop.rrhh.application.command.GoalCommandService;
 import com.microshop.rrhh.application.dto.evaluation.GoalRequestDto;
 import com.microshop.rrhh.application.dto.evaluation.GoalResponseDto;
 import com.microshop.rrhh.application.query.GoalQueryService;
+import com.microshop.rrhh.domain.model.Goal;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -31,6 +39,27 @@ public class GoalController {
     @Operation(summary = "Listar todas las metas")
     public ResponseEntity<List<GoalResponseDto>> getAll() {
         return ResponseEntity.ok(goalQueryService.getAll());
+    }
+
+    @GetMapping("/paged")
+    @Operation(summary = "Listar metas (paginado, con filtros de búsqueda/estado/prioridad/empleado/asignador/departamento/rangos de fecha)")
+    public ResponseEntity<Page<GoalResponseDto>> getGoalsPaged(
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Goal.GoalStatus estado,
+            @RequestParam(required = false) Goal.Priority prioridad,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long asignadoPorId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        return ResponseEntity.ok(goalQueryService.getGoalsPaged(search, estado, prioridad, employeeId,
+                asignadoPorId, departmentId, fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta,
+                pageable));
     }
 
     @GetMapping("/{id}")

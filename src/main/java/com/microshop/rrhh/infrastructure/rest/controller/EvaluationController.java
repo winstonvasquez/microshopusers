@@ -39,18 +39,27 @@ public class EvaluationController {
     private final EvaluationQueryService evaluationQueryService;
 
     @GetMapping
-    @Operation(summary = "Listar evaluaciones (paginado, con filtros de estado/tipo/rango de fecha)")
+    @Operation(summary = "Listar evaluaciones (paginado, con filtros de búsqueda/estado/tipo/empleado/evaluador/departamento/periodo/rangos de fecha)")
     public ResponseEntity<Page<EvaluationResponseDto>> getAll(
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) PerformanceEvaluation.EvaluationStatus estado,
             @RequestParam(required = false) PerformanceEvaluation.EvaluationType tipo,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long evaluadorId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String periodo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEvaluacionDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEvaluacionHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEvaluacionHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaRevisionDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaRevisionHasta) {
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
         return ResponseEntity.ok(evaluationQueryService.getAllPaged(
-                estado, tipo, fechaEvaluacionDesde, fechaEvaluacionHasta, pageable));
+                search, estado, tipo, employeeId, evaluadorId, departmentId, periodo,
+                fechaEvaluacionDesde, fechaEvaluacionHasta, proximaRevisionDesde, proximaRevisionHasta,
+                pageable));
     }
 
     /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
@@ -101,14 +110,23 @@ public class EvaluationController {
     @Operation(summary = "Exportar evaluaciones a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
     public ResponseEntity<byte[]> exportEvaluations(
             @RequestParam(defaultValue = "xlsx") String format,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) PerformanceEvaluation.EvaluationStatus estado,
             @RequestParam(required = false) PerformanceEvaluation.EvaluationType tipo,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long evaluadorId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String periodo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEvaluacionDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEvaluacionHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEvaluacionHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaRevisionDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaRevisionHasta) {
         // Trae TODAS las evaluaciones que matcheen los mismos filtros que la lista (sin paginación real).
         Pageable pageable = PageRequest.of(0, 100000, resolveSort(null));
         List<EvaluationResponseDto> evaluaciones = evaluationQueryService.getAllPaged(
-                estado, tipo, fechaEvaluacionDesde, fechaEvaluacionHasta, pageable).getContent();
+                search, estado, tipo, employeeId, evaluadorId, departmentId, periodo,
+                fechaEvaluacionDesde, fechaEvaluacionHasta, proximaRevisionDesde, proximaRevisionHasta,
+                pageable).getContent();
 
         List<String> cabeceras = List.of("Empleado", "Evaluador", "Período", "Tipo", "Fecha", "Puntaje", "Estado");
         DateTimeFormatter fechaFormato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -189,6 +207,17 @@ public class EvaluationController {
     @Operation(summary = "Listar criterios activos")
     public ResponseEntity<List<EvaluationCriteriaResponseDto>> getActiveCriteria() {
         return ResponseEntity.ok(evaluationQueryService.getActiveCriteria());
+    }
+
+    @GetMapping("/criteria/paged")
+    @Operation(summary = "Listar criterios de evaluación (paginado, con búsqueda por texto y filtro de estado)")
+    public ResponseEntity<Page<EvaluationCriteriaResponseDto>> getCriteriaPaged(
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean activo) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
+        return ResponseEntity.ok(evaluationQueryService.getCriteriaPaged(search, activo, pageable));
     }
 
     @GetMapping("/criteria/{id}")

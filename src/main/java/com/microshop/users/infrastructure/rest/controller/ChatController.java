@@ -9,6 +9,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +22,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -131,14 +140,39 @@ public class ChatController {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Lista todas las conversaciones activas para el panel de soporte.
+     * Lista conversaciones para el panel de soporte, paginado y con filtros avanzados
+     * (2026-07-27: antes devolvía SIEMPRE solo las ABIERTA, sin paginar ni filtrar).
      * GET /api/admin/chat/conversaciones
      */
     @GetMapping("/api/admin/chat/conversaciones")
     @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
-    @Operation(summary = "Listar conversaciones activas (admin)")
-    public ResponseEntity<List<ChatConversacionResponseDto>> listarConversacionesAdmin() {
-        return ResponseEntity.ok(queryService.listarConversacionesAdmin());
+    @Operation(summary = "Listar conversaciones (admin) con búsqueda por asunto, estado, cliente y rango de fechas")
+    public ResponseEntity<Page<ChatConversacionResponseDto>> listarConversacionesAdmin(
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate lastMessageAtDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate lastMessageAtHasta) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("lastMessageAt").descending());
+        // LocalDate (yyyy-MM-dd, lo que envía el date-range del frontend) -> Instant día completo.
+        Instant createdDesde = toInstantInicioDia(createdAtDesde);
+        Instant createdHasta = toInstantFinDia(createdAtHasta);
+        Instant lastMsgDesde = toInstantInicioDia(lastMessageAtDesde);
+        Instant lastMsgHasta = toInstantFinDia(lastMessageAtHasta);
+        return ResponseEntity.ok(queryService.listarConversacionesAdmin(
+                search, estado, clienteId, createdDesde, createdHasta, lastMsgDesde, lastMsgHasta, pageable));
+    }
+
+    private static Instant toInstantInicioDia(LocalDate fecha) {
+        return fecha != null ? fecha.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
+    }
+
+    private static Instant toInstantFinDia(LocalDate fecha) {
+        return fecha != null ? fecha.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
     }
 
     /**

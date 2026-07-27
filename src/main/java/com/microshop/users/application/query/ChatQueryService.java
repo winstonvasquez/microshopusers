@@ -7,9 +7,12 @@ import com.microshop.users.infrastructure.persistence.entity.ChatMensajeEntity;
 import com.microshop.users.infrastructure.persistence.repository.ChatConversacionRepository;
 import com.microshop.users.infrastructure.persistence.repository.ChatMensajeRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.shared.util.AppUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,11 +68,21 @@ public class ChatQueryService {
     }
 
     /**
-     * Lista todas las conversaciones activas para el panel de soporte.
+     * Lista conversaciones para el panel de soporte, paginado y con filtros avanzados opcionales
+     * (2026-07-27): antes hardcodeaba estado="ABIERTA" y devolvía la lista completa sin paginar.
+     * Nota: ChatConversacionEntity no tiene companyId (chat cliente↔MicroShop es transversal a
+     * tenants) — sin scope de tenant a propósito, igual que antes de este cambio.
      */
     @Transactional(readOnly = true)
-    public List<ChatConversacionResponseDto> listarConversacionesAdmin() {
-        return conversacionRepo.findByEstado("ABIERTA").stream().map(chatMapper::toDto).toList();
+    public Page<ChatConversacionResponseDto> listarConversacionesAdmin(String search, String estado, Long clienteId,
+                                                                        Instant createdAtDesde, Instant createdAtHasta,
+                                                                        Instant lastMessageAtDesde, Instant lastMessageAtHasta,
+                                                                        Pageable pageable) {
+        String term = AppUtils.searchTermOrNull(search);
+        String estadoFiltro = AppUtils.searchTermOrNull(estado);
+        return conversacionRepo.searchAdminPaged(term, estadoFiltro, clienteId,
+                        createdAtDesde, createdAtHasta, lastMessageAtDesde, lastMessageAtHasta, pageable)
+                .map(chatMapper::toDto);
     }
 
     /**

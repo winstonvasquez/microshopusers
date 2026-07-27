@@ -54,12 +54,28 @@ public class TrainingQueryService {
                 .toList();
     }
 
-    /** Listado paginado server-side con filtro de estado + rango de fecha de inicio opcionales. */
+    /** Sobrecarga corta (compat): mantiene la firma previa para llamadores que no filtran por search/instructor/fechaFin. */
     public Page<TrainingResponseDto> getTrainingsPaged(Training.TrainingStatus estado, LocalDate fechaInicioDesde,
                                                         LocalDate fechaInicioHasta, Pageable pageable) {
+        return getTrainingsPaged(null, estado, null, fechaInicioDesde, fechaInicioHasta, null, null, pageable);
+    }
+
+    /** Listado paginado server-side: búsqueda por texto + estado + instructor + rango fechaInicio/fechaFin. */
+    public Page<TrainingResponseDto> getTrainingsPaged(String search, Training.TrainingStatus estado, String instructor,
+                                                        LocalDate fechaInicioDesde, LocalDate fechaInicioHasta,
+                                                        LocalDate fechaFinDesde, LocalDate fechaFinHasta,
+                                                        Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
-        return trainingRepository.searchPaged(tenantId, estado, fechaInicioDesde, fechaInicioHasta, pageable)
+        String searchParam = blankToEmpty(search);
+        String instructorParam = blankToEmpty(instructor);
+        return trainingRepository.searchPaged(tenantId, searchParam, estado, instructorParam,
+                        fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta, pageable)
                 .map(t -> trainingMapper.toDto(t, participationRepository.countByTenantIdAndTrainingId(tenantId, t.getId())));
+    }
+
+    /** Normaliza un parámetro String: null o en blanco -> cadena vacía (centinela usado en la query). */
+    private static String blankToEmpty(String value) {
+        return (value != null && !value.isBlank()) ? value : "";
     }
 
     public List<TrainingParticipationResponseDto> getParticipantsByTraining(Long trainingId) {

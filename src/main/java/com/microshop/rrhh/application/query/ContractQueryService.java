@@ -28,11 +28,22 @@ public class ContractQueryService {
     private final TenantContext tenantContext;
     private final MessageSource messageSource;
 
+    /**
+     * Listado paginado con filtros avanzados: búsqueda por texto, estado, tipo de contrato,
+     * jornada laboral, moneda, empleado, departamento y rangos de fecha de inicio/fin.
+     */
     public Page<ContractResponseDto> getContractsPaged(String search, Contract.ContractStatus estado,
-                                                       Contract.ContractType tipo, Pageable pageable) {
+                                                       Contract.ContractType tipo, Contract.WorkingDay jornada,
+                                                       String moneda, Long employeeId, Long departmentId,
+                                                       LocalDate fechaInicioDesde, LocalDate fechaInicioHasta,
+                                                       LocalDate fechaFinDesde, LocalDate fechaFinHasta,
+                                                       Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
         String term = AppUtils.searchTermOrNull(search);
-        return contractRepository.searchPaged(tenantId, term, estado, tipo, pageable).map(contractMapper::toDto);
+        String monedaTerm = AppUtils.searchTermOrNull(moneda);
+        return contractRepository.searchPaged(tenantId, term, estado, tipo, jornada, monedaTerm, employeeId,
+                        departmentId, fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta, pageable)
+                .map(contractMapper::toDto);
     }
 
     public List<ContractResponseDto> getAllContracts() {

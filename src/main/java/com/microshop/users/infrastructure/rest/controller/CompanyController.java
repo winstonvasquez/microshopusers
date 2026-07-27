@@ -85,12 +85,17 @@ public class CompanyController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionHasta,
+            @RequestParam(required = false) String planCode,
+            @RequestParam(required = false) String subscriptionStatus,
+            @RequestParam(required = false) Long rubroId,
+            @RequestParam(required = false) Boolean conDominio) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
         // LocalDate (yyyy-MM-dd, lo que envía el date-range del frontend) -> Instant día completo.
         Instant desde = fechaCreacionDesde != null ? fechaCreacionDesde.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
         Instant hasta = fechaCreacionHasta != null ? fechaCreacionHasta.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
-        return ResponseEntity.ok(companyQueryService.findPaged(search, active, desde, hasta, pageable, resolveTenantScope()));
+        return ResponseEntity.ok(companyQueryService.findPaged(search, active, desde, hasta,
+                planCode, subscriptionStatus, rubroId, conDominio, pageable, resolveTenantScope()));
     }
 
     @GetMapping("/export")
@@ -100,14 +105,19 @@ public class CompanyController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionHasta,
+            @RequestParam(required = false) String planCode,
+            @RequestParam(required = false) String subscriptionStatus,
+            @RequestParam(required = false) Long rubroId,
+            @RequestParam(required = false) Boolean conDominio) {
         // Trae TODAS las empresas que matcheen los mismos filtros que la lista (sin paginación real),
         // acotado por tenant salvo SUPERADMIN (mismo scope que getCompaniesPaged).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("name").ascending());
         // LocalDate (yyyy-MM-dd, lo que envía el date-range del frontend) -> Instant día completo.
         Instant desde = fechaCreacionDesde != null ? fechaCreacionDesde.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
         Instant hasta = fechaCreacionHasta != null ? fechaCreacionHasta.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
-        List<CompanyResponseDto> empresas = companyQueryService.findPaged(search, active, desde, hasta, pageable, resolveTenantScope()).getContent();
+        List<CompanyResponseDto> empresas = companyQueryService.findPaged(search, active, desde, hasta,
+                planCode, subscriptionStatus, rubroId, conDominio, pageable, resolveTenantScope()).getContent();
 
         List<String> cabeceras = List.of("Nombre", "RUC", "Razón Social", "Email", "Estado");
         List<List<Object>> filas = empresas.stream()

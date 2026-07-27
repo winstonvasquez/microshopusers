@@ -71,17 +71,21 @@ public class UserController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar usuarios paginados")
+    @Operation(summary = "Listar usuarios paginados, con filtros avanzados (búsqueda, rol, estado, tipo de documento, rango de fecha)")
     public ResponseEntity<Page<UserResponseDto>> getAllUsers(
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Long rolId,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) String tipoDocumento,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionHasta) {
-        log.info("GET /api/users - Obteniendo usuarios con paginación");
+        log.info("GET /api/users - Obteniendo usuarios con paginación y filtros");
         // LocalDate (yyyy-MM-dd, lo que envía el date-range del frontend) -> Instant día completo.
         Instant desde = fechaCreacionDesde != null ? fechaCreacionDesde.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
         Instant hasta = fechaCreacionHasta != null ? fechaCreacionHasta.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
-        Page<UserResponseDto> users = userQueryService.findAll(pageable, resolveTenantScope(), rolId, desde, hasta);
+        Page<UserResponseDto> users = userQueryService.findAll(
+                pageable, resolveTenantScope(), search, rolId, activo, tipoDocumento, desde, hasta);
         return ResponseEntity.ok(users);
     }
 

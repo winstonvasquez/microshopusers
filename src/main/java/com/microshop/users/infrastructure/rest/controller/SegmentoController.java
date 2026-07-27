@@ -16,12 +16,17 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,12 +41,29 @@ public class SegmentoController {
     private final SegmentoQueryService queryService;
 
     @GetMapping
-    @Operation(summary = "Listar segmentos activos (paginado)")
+    @Operation(summary = "Listar segmentos (paginado) con filtros avanzados: estado, tipo de cliente y rango de fecha de creación")
     public ResponseEntity<Page<SegmentoResponseDto>> getAll(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) String tipoCliente,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
             @PageableDefault(size = 10, sort = "nombre", direction = Sort.Direction.ASC) Pageable pageable) {
-        log.info("GET {} - search={}", ApiPaths.SEGMENTS, search);
-        return ResponseEntity.ok(queryService.findAll(search, pageable));
+        log.info("GET {} - search={} activo={} tipoCliente={} fechaDesde={} fechaHasta={}",
+                ApiPaths.SEGMENTS, search, activo, tipoCliente, fechaDesde, fechaHasta);
+        Instant desde = toInstantInicioDia(fechaDesde);
+        Instant hasta = toInstantFinDia(fechaHasta);
+        return ResponseEntity.ok(queryService.findAll(search, activo, tipoCliente, desde, hasta, pageable));
+    }
+
+    /** fechaCreacion es Instant (heredado de AuditEntity) -> convierte el LocalDate del date-range a inicio de día. */
+    private static Instant toInstantInicioDia(LocalDate fecha) {
+        return fecha != null ? fecha.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
+    }
+
+    /** Convierte el LocalDate del date-range a fin de día (23:59:59.999999999) en la zona del servidor. */
+    private static Instant toInstantFinDia(LocalDate fecha) {
+        return fecha != null ? fecha.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
     }
 
     @GetMapping("/{id}")
@@ -55,11 +77,18 @@ public class SegmentoController {
     @Operation(summary = "Exportar segmentos a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
     public ResponseEntity<byte[]> export(
             @RequestParam(defaultValue = "xlsx") String format,
-            @RequestParam(required = false) String search) {
-        log.info("GET {}/export - format={} search={}", ApiPaths.SEGMENTS, format, search);
-        // Trae TODOS los segmentos activos que matcheen los mismos filtros que la lista (sin paginación real).
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean activo,
+            @RequestParam(required = false) String tipoCliente,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
+        log.info("GET {}/export - format={} search={} activo={} tipoCliente={} fechaDesde={} fechaHasta={}",
+                ApiPaths.SEGMENTS, format, search, activo, tipoCliente, fechaDesde, fechaHasta);
+        Instant desde = toInstantInicioDia(fechaDesde);
+        Instant hasta = toInstantFinDia(fechaHasta);
+        // Trae TODOS los segmentos que matcheen los mismos filtros que la lista (sin paginación real).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("nombre").ascending());
-        List<SegmentoResponseDto> segmentos = queryService.findAll(search, pageable).getContent();
+        List<SegmentoResponseDto> segmentos = queryService.findAll(search, activo, tipoCliente, desde, hasta, pageable).getContent();
 
         List<String> cabeceras = List.of("Segmento", "Tipo de Cliente", "Descripción", "Clientes", "Estado");
         List<List<Object>> filas = segmentos.stream()

@@ -27,10 +27,19 @@ public class PositionQueryService {
     private final TenantContext tenantContext;
     private final MessageSource messageSource;
 
+    /** Sobrecarga corta sin filtros avanzados nuevos (delega con null = no filtra). */
     public Page<PositionResponseDto> getPositionsPaged(String search, Long departmentId, Pageable pageable) {
+        return getPositionsPaged(search, departmentId, null, null, pageable);
+    }
+
+    /** Listado paginado de puestos con filtros avanzados: estado (activo/inactivo) y nivel del puesto. */
+    public Page<PositionResponseDto> getPositionsPaged(String search, Long departmentId, Boolean activo,
+            String nivel, Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
         String term = AppUtils.searchTermOrNull(search);
-        return positionRepository.searchPaged(tenantId, term, departmentId, pageable).map(positionMapper::toDto);
+        String nivelTerm = AppUtils.searchTermOrNull(nivel);
+        return positionRepository.searchPaged(tenantId, term, departmentId, activo, nivelTerm, pageable)
+                .map(positionMapper::toDto);
     }
 
     public List<PositionResponseDto> getAllPositions() {

@@ -49,16 +49,39 @@ public interface PerformanceEvaluationRepository extends JpaRepository<Performan
     long countByTenantId(Long tenantId);
 
     // Page + solo ManyToOne (sin colecciones "details") → seguro con paginación, no infla filas.
+    // Filtros avanzados (2026-07-27): búsqueda por texto (empleado/evaluador/periodo), evaluado,
+    // evaluador, departamento (vía employee.department, sin JOIN real: solo lee la FK) y periodo
+    // exacto, además del rango de fecha de evaluación ya existente y el nuevo rango de próxima revisión.
     @EntityGraph(attributePaths = {"employee", "evaluador"})
     @Query("SELECT e FROM PerformanceEvaluation e WHERE e.tenantId = :tenantId " +
+           "AND (:search IS NULL OR :search = '' OR " +
+           "  LOWER(e.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(e.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(e.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(e.evaluador.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(e.evaluador.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "  LOWER(e.periodo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "AND (:estado IS NULL OR e.estado = :estado) " +
            "AND (:tipo IS NULL OR e.tipoEvaluacion = :tipo) " +
+           "AND (:employeeId IS NULL OR e.employee.id = :employeeId) " +
+           "AND (:evaluadorId IS NULL OR e.evaluador.id = :evaluadorId) " +
+           "AND (:departmentId IS NULL OR e.employee.department.id = :departmentId) " +
+           "AND (:periodo IS NULL OR :periodo = '' OR e.periodo = :periodo) " +
            "AND (:desde IS NULL OR e.fechaEvaluacion >= :desde) " +
-           "AND (:hasta IS NULL OR e.fechaEvaluacion <= :hasta)")
+           "AND (:hasta IS NULL OR e.fechaEvaluacion <= :hasta) " +
+           "AND (:proximaRevisionDesde IS NULL OR e.proximaRevision >= :proximaRevisionDesde) " +
+           "AND (:proximaRevisionHasta IS NULL OR e.proximaRevision <= :proximaRevisionHasta)")
     Page<PerformanceEvaluation> findFiltered(@Param("tenantId") Long tenantId,
+                                              @Param("search") String search,
                                               @Param("estado") PerformanceEvaluation.EvaluationStatus estado,
                                               @Param("tipo") PerformanceEvaluation.EvaluationType tipo,
+                                              @Param("employeeId") Long employeeId,
+                                              @Param("evaluadorId") Long evaluadorId,
+                                              @Param("departmentId") Long departmentId,
+                                              @Param("periodo") String periodo,
                                               @Param("desde") LocalDate desde,
                                               @Param("hasta") LocalDate hasta,
+                                              @Param("proximaRevisionDesde") LocalDate proximaRevisionDesde,
+                                              @Param("proximaRevisionHasta") LocalDate proximaRevisionHasta,
                                               Pageable pageable);
 }

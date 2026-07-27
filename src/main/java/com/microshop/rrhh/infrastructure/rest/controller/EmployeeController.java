@@ -4,6 +4,7 @@ import com.microshop.rrhh.application.command.EmployeeCommandService;
 import com.microshop.rrhh.application.dto.employee.EmployeeRequestDto;
 import com.microshop.rrhh.application.dto.employee.EmployeeResponseDto;
 import com.microshop.rrhh.application.query.EmployeeQueryService;
+import com.microshop.rrhh.domain.model.Contract;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.shared.constants.ApiPaths;
 import com.microshop.users.shared.constants.AppConstants;
@@ -46,7 +47,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/paged")
-    @Operation(summary = "Listar empleados paginado (search + estado, server-side)")
+    @Operation(summary = "Listar empleados paginado (search + filtros avanzados, server-side)")
     public ResponseEntity<Page<EmployeeResponseDto>> getEmployeesPaged(
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
@@ -54,11 +55,26 @@ public class EmployeeController {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false) Employee.EmployeeStatus status,
             @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) Long supervisorId,
+            @RequestParam(required = false) String tipoDocumento,
+            @RequestParam(required = false) String sistemaPrevisional,
+            @RequestParam(required = false) String afpNombre,
+            @RequestParam(required = false) Employee.Gender genero,
+            @RequestParam(required = false) Employee.MaritalStatus estadoCivil,
+            @RequestParam(required = false) Contract.ContractType tipoContrato,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaSalidaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaSalidaHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaNacimientoDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaNacimientoHasta) {
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
         return ResponseEntity.ok(employeeQueryService.getEmployeesPaged(
-                search, status, departmentId, fechaIngresoDesde, fechaIngresoHasta, pageable));
+                search, status, departmentId, positionId, supervisorId,
+                tipoDocumento, sistemaPrevisional, afpNombre, genero, estadoCivil, tipoContrato,
+                fechaIngresoDesde, fechaIngresoHasta, fechaSalidaDesde, fechaSalidaHasta,
+                fechaNacimientoDesde, fechaNacimientoHasta, pageable));
     }
 
     /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
@@ -116,10 +132,31 @@ public class EmployeeController {
     public ResponseEntity<byte[]> exportEmployees(
             @RequestParam(defaultValue = "xlsx") String format,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Employee.EmployeeStatus status) {
+            @RequestParam(required = false) Employee.EmployeeStatus status,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) Long supervisorId,
+            @RequestParam(required = false) String tipoDocumento,
+            @RequestParam(required = false) String sistemaPrevisional,
+            @RequestParam(required = false) String afpNombre,
+            @RequestParam(required = false) Employee.Gender genero,
+            @RequestParam(required = false) Employee.MaritalStatus estadoCivil,
+            @RequestParam(required = false) Contract.ContractType tipoContrato,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaSalidaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaSalidaHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaNacimientoDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaNacimientoHasta) {
         // Trae TODOS los empleados que matcheen los mismos filtros que la lista (sin paginación real).
+        // BUG corregido (2026-07-27): antes llamaba al overload corto y perdía departmentId + rango
+        // de fecha de ingreso que SÍ estaban aplicados en la pantalla -> exportaba de más.
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("apellidos").ascending());
-        List<EmployeeResponseDto> empleados = employeeQueryService.getEmployeesPaged(search, status, pageable).getContent();
+        List<EmployeeResponseDto> empleados = employeeQueryService.getEmployeesPaged(
+                search, status, departmentId, positionId, supervisorId,
+                tipoDocumento, sistemaPrevisional, afpNombre, genero, estadoCivil, tipoContrato,
+                fechaIngresoDesde, fechaIngresoHasta, fechaSalidaDesde, fechaSalidaHasta,
+                fechaNacimientoDesde, fechaNacimientoHasta, pageable).getContent();
 
         List<String> cabeceras = List.of("Código", "Nombre Completo", "DNI/Doc", "Departamento", "Puesto", "Estado");
         List<List<Object>> filas = empleados.stream()

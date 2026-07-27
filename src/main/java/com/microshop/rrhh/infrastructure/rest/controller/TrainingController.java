@@ -41,16 +41,21 @@ public class TrainingController {
     private static final DateTimeFormatter FECHA_FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @GetMapping
-    @Operation(summary = "Listar capacitaciones paginado (estado + rango fecha inicio, server-side)")
+    @Operation(summary = "Listar capacitaciones paginado con filtros avanzados: búsqueda, estado, instructor y rangos de fecha inicio/fin (server-side)")
     public ResponseEntity<Page<TrainingResponseDto>> getAll(
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) Training.TrainingStatus estado,
+            @RequestParam(required = false) String instructor,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta) {
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
-        return ResponseEntity.ok(trainingQueryService.getTrainingsPaged(estado, fechaInicioDesde, fechaInicioHasta, pageable));
+        return ResponseEntity.ok(trainingQueryService.getTrainingsPaged(search, estado, instructor,
+                fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta, pageable));
     }
 
     /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
@@ -77,11 +82,17 @@ public class TrainingController {
     @Operation(summary = "Exportar capacitaciones a XLSX o CSV (generado en el backend, datos limpios sin HTML)")
     public ResponseEntity<byte[]> exportTrainings(
             @RequestParam(defaultValue = "xlsx") String format,
-            @RequestParam(required = false) String estado) {
-        // Mismo filtro que la lista del frontend (solo estado; no hay búsqueda por texto en esta página).
-        List<TrainingResponseDto> capacitaciones = (estado != null && !estado.isBlank())
-                ? trainingQueryService.getByStatus(estado)
-                : trainingQueryService.getAll();
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Training.TrainingStatus estado,
+            @RequestParam(required = false) String instructor,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta) {
+        // Mismos filtros que la lista del frontend (antes solo recibía 'estado' y perdía el resto).
+        Pageable pageable = PageRequest.of(0, 100000, Sort.by("fechaInicio").descending());
+        List<TrainingResponseDto> capacitaciones = trainingQueryService.getTrainingsPaged(search, estado, instructor,
+                fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta, pageable).getContent();
 
         List<String> cabeceras = List.of("Curso", "Instructor", "Inicio", "Fin", "Horas", "Partic.", "Estado");
         List<List<Object>> filas = capacitaciones.stream()

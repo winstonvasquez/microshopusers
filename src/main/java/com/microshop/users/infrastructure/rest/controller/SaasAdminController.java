@@ -35,9 +35,12 @@ public class SaasAdminController {
     private final LandingContentCommandService landingContentCommandService;
 
     @GetMapping("/plans")
-    @Operation(summary = "Lista todos los planes (incluye inactivos)")
-    public ResponseEntity<List<SaasPlanAdminDto>> getAllPlans() {
-        return ResponseEntity.ok(saasQueryService.getAllPlansForAdmin());
+    @Operation(summary = "Lista todos los planes (incluye inactivos), con filtros opcionales de búsqueda, estado y módulo incluido")
+    public ResponseEntity<List<SaasPlanAdminDto>> getAllPlans(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String moduleCode) {
+        return ResponseEntity.ok(saasQueryService.getAllPlansForAdmin(search, isActive, moduleCode));
     }
 
     @PostMapping("/plans")

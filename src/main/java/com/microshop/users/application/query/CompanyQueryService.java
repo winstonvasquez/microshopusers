@@ -50,17 +50,42 @@ public class CompanyQueryService {
         return companyRepository.findProjectedById(companyId).map(List::of).orElseGet(List::of);
     }
 
+    /** Sobrecarga corta sin filtros avanzados nuevos (delega con null = no filtra). */
     public Page<CompanyResponseDto> findPaged(String search, Boolean active, Instant fechaCreacionDesde,
             Instant fechaCreacionHasta, Pageable pageable) {
-        String term = AppUtils.searchTermOrNull(search);
-        return companyRepository.searchPaged(term, active, fechaCreacionDesde, fechaCreacionHasta, pageable);
+        return findPaged(search, active, fechaCreacionDesde, fechaCreacionHasta, null, null, null, null, pageable);
     }
 
     /** Ver {@link #findPaged(String, Boolean, Instant, Instant, Pageable)}, acotado a UNA empresa cuando {@code companyId} es no-nulo. */
     public Page<CompanyResponseDto> findPaged(String search, Boolean active, Instant fechaCreacionDesde,
             Instant fechaCreacionHasta, Pageable pageable, Long companyId) {
+        return findPaged(search, active, fechaCreacionDesde, fechaCreacionHasta, null, null, null, null, pageable, companyId);
+    }
+
+    /**
+     * Listado paginado de empresas con filtros avanzados: plan SaaS, estado de suscripción,
+     * rubro y "con dominio propio", además de los ya existentes (search/active/rango de fechas).
+     */
+    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Instant fechaCreacionDesde,
+            Instant fechaCreacionHasta, String planCode, String subscriptionStatus, Long rubroId,
+            Boolean conDominio, Pageable pageable) {
         String term = AppUtils.searchTermOrNull(search);
-        return companyRepository.searchPagedScoped(term, active, fechaCreacionDesde, fechaCreacionHasta, companyId, pageable);
+        return companyRepository.searchPaged(term, active, fechaCreacionDesde, fechaCreacionHasta,
+                blankToNull(planCode), blankToNull(subscriptionStatus), rubroId, conDominio, pageable);
+    }
+
+    /** Ver {@link #findPaged(String, Boolean, Instant, Instant, String, String, Long, Boolean, Pageable)}, acotado a UNA empresa. */
+    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Instant fechaCreacionDesde,
+            Instant fechaCreacionHasta, String planCode, String subscriptionStatus, Long rubroId,
+            Boolean conDominio, Pageable pageable, Long companyId) {
+        String term = AppUtils.searchTermOrNull(search);
+        return companyRepository.searchPagedScoped(term, active, fechaCreacionDesde, fechaCreacionHasta,
+                blankToNull(planCode), blankToNull(subscriptionStatus), rubroId, conDominio, companyId, pageable);
+    }
+
+    /** Un filtro vacío o en blanco equivale a "no filtrar" (la query usa `:param IS NULL OR ...`). */
+    private static String blankToNull(String value) {
+        return (value != null && !value.isBlank()) ? value : null;
     }
 
     public Optional<CompanyResponseDto> findById(@NonNull Long id) {

@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Map;
 
 /**
@@ -54,15 +60,24 @@ public class NotificationController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar notificaciones paginadas")
+    @Operation(summary = "Listar notificaciones paginadas con filtros avanzados (tipo, leída/no leída, rango de fecha, búsqueda)")
     public ResponseEntity<Page<NotificationResponse>> getNotifications(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
-            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size) {
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Boolean read,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate createdAtHasta) {
 
         Long userId = resolveUserId(userDetails.getUsername());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        // LocalDate (yyyy-MM-dd, lo que envía el date-range del frontend) -> Instant día completo.
+        Instant desde = createdAtDesde != null ? createdAtDesde.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
+        Instant hasta = createdAtHasta != null ? createdAtHasta.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
         Page<NotificationResponse> result = notificationRepo
-                .findByUsuarioIdOrderByCreatedAtDesc(userId, PageRequest.of(page, size))
+                .searchPaged(userId, search, type, read, desde, hasta, pageable)
                 .map(n -> new NotificationResponse(
                         n.getId(), n.getType(), n.getTitle(), n.getBody(),
                         n.getReferenceId(), n.getReferenceType(), n.isRead(), n.getCreatedAt()));

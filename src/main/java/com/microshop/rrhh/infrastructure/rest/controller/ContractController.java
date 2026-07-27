@@ -21,8 +21,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -44,9 +46,19 @@ public class ContractController {
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Contract.ContractStatus status,
-            @RequestParam(required = false) Contract.ContractType type) {
+            @RequestParam(required = false) Contract.ContractType type,
+            @RequestParam(required = false) Contract.WorkingDay jornadaLaboral,
+            @RequestParam(required = false) String moneda,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        return ResponseEntity.ok(contractQueryService.getContractsPaged(search, status, type, pageable));
+        return ResponseEntity.ok(contractQueryService.getContractsPaged(search, status, type, jornadaLaboral,
+                moneda, employeeId, departmentId, fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta,
+                pageable));
     }
 
     @GetMapping
@@ -88,10 +100,20 @@ public class ContractController {
             @RequestParam(defaultValue = "xlsx") String format,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Contract.ContractStatus status,
-            @RequestParam(required = false) Contract.ContractType type) {
+            @RequestParam(required = false) Contract.ContractType type,
+            @RequestParam(required = false) Contract.WorkingDay jornadaLaboral,
+            @RequestParam(required = false) String moneda,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta) {
         // Trae TODOS los contratos que matcheen los mismos filtros que la lista (sin paginación real).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("id").descending());
-        List<ContractResponseDto> contratos = contractQueryService.getContractsPaged(search, status, type, pageable).getContent();
+        List<ContractResponseDto> contratos = contractQueryService.getContractsPaged(search, status, type,
+                jornadaLaboral, moneda, employeeId, departmentId, fechaInicioDesde, fechaInicioHasta,
+                fechaFinDesde, fechaFinHasta, pageable).getContent();
 
         List<String> cabeceras = List.of("Empleado", "Tipo", "Inicio", "Fin", "Salario", "Jornada", "Estado");
         List<List<Object>> filas = contratos.stream()

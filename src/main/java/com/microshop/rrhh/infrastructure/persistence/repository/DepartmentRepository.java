@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,14 +47,23 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     List<Department> searchByTenantIdAndTerm(@Param("tenantId") Long tenantId, @Param("term") String term);
 
     // Page + solo ManyToOne (sin colecciones) → seguro con paginación.
+    // Filtros avanzados: manager, departamento padre y rango de fecha de creación.
     @EntityGraph(attributePaths = {"manager", "parent"})
     @Query("SELECT d FROM Department d WHERE d.tenantId = :tenantId " +
            "AND (:search IS NULL OR :search = '' OR " +
            "  LOWER(d.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "  LOWER(d.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:activo IS NULL OR d.activo = :activo)")
+           "AND (:activo IS NULL OR d.activo = :activo) " +
+           "AND (:managerId IS NULL OR d.manager.id = :managerId) " +
+           "AND (:parentId IS NULL OR d.parent.id = :parentId) " +
+           "AND (:createdAtDesde IS NULL OR d.createdAt >= :createdAtDesde) " +
+           "AND (:createdAtHasta IS NULL OR d.createdAt <= :createdAtHasta)")
     Page<Department> searchPaged(@Param("tenantId") Long tenantId,
                                  @Param("search") String search,
                                  @Param("activo") Boolean activo,
+                                 @Param("managerId") Long managerId,
+                                 @Param("parentId") Long parentId,
+                                 @Param("createdAtDesde") LocalDateTime createdAtDesde,
+                                 @Param("createdAtHasta") LocalDateTime createdAtHasta,
                                  Pageable pageable);
 }

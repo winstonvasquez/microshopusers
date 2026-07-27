@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
@@ -27,10 +28,19 @@ public class DepartmentQueryService {
     private final TenantContext tenantContext;
     private final MessageSource messageSource;
 
+    /** Sobrecarga corta (compat): mantiene la firma previa para llamadores que no filtran por manager/parent/fecha. */
     public Page<DepartmentResponseDto> getDepartmentsPaged(String search, Boolean activo, Pageable pageable) {
+        return getDepartmentsPaged(search, activo, null, null, null, null, pageable);
+    }
+
+    public Page<DepartmentResponseDto> getDepartmentsPaged(String search, Boolean activo, Long managerId, Long parentId,
+                                                            LocalDateTime createdAtDesde, LocalDateTime createdAtHasta,
+                                                            Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
         String term = AppUtils.searchTermOrNull(search);
-        return departmentRepository.searchPaged(tenantId, term, activo, pageable).map(departmentMapper::toDto);
+        return departmentRepository
+                .searchPaged(tenantId, term, activo, managerId, parentId, createdAtDesde, createdAtHasta, pageable)
+                .map(departmentMapper::toDto);
     }
 
     public List<DepartmentResponseDto> getAllDepartments() {

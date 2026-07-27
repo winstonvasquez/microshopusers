@@ -28,8 +28,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +53,22 @@ public class VacationController {
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) VacationRequest.VacationStatus estado) {
+            @RequestParam(required = false) VacationRequest.VacationStatus estado,
+            @RequestParam(required = false) VacationRequest.VacationType tipoVacacion,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long aprobadoPorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaAprobacionDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaAprobacionHasta) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        return ResponseEntity.ok(vacationQueryService.getVacationsPaged(search, estado, pageable));
+        return ResponseEntity.ok(vacationQueryService.getVacationsPaged(search, estado, tipoVacacion,
+                employeeId, departmentId, aprobadoPorId,
+                fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta,
+                fechaAprobacionDesde, fechaAprobacionHasta, pageable));
     }
 
     @GetMapping("/export")
@@ -61,10 +76,23 @@ public class VacationController {
     public ResponseEntity<byte[]> exportVacations(
             @RequestParam(defaultValue = "xlsx") String format,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) VacationRequest.VacationStatus estado) {
+            @RequestParam(required = false) VacationRequest.VacationStatus estado,
+            @RequestParam(required = false) VacationRequest.VacationType tipoVacacion,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long aprobadoPorId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaFinHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaAprobacionDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaAprobacionHasta) {
         // Trae TODAS las solicitudes que matcheen los mismos filtros que la lista (sin paginación real).
         Pageable pageable = PageRequest.of(0, 100000, Sort.by("id").descending());
-        List<VacationResponseDto> solicitudes = vacationQueryService.getVacationsPaged(search, estado, pageable).getContent();
+        List<VacationResponseDto> solicitudes = vacationQueryService.getVacationsPaged(search, estado, tipoVacacion,
+                employeeId, departmentId, aprobadoPorId,
+                fechaInicioDesde, fechaInicioHasta, fechaFinDesde, fechaFinHasta,
+                fechaAprobacionDesde, fechaAprobacionHasta, pageable).getContent();
 
         // Mapa employeeId -> nombre completo (una sola consulta de todos los empleados del tenant).
         Map<Long, String> nombresPorEmpleado = employeeQueryService.getAllEmployees().stream()

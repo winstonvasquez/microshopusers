@@ -10,6 +10,7 @@ public record UserResponseDto(
         Long id,
         String username,
         String email,
+        boolean activo,
         RolDto rol,
         PersonaDto persona,
         LocalDateTime createdAt,

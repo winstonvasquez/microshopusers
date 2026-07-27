@@ -6,6 +6,7 @@ import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.PolicyRoleEntity;
 import com.microshop.users.infrastructure.persistence.repository.PolicyRoleRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,19 +29,30 @@ public class UserQueryService {
     private final PolicyRoleRepository policyRoleRepository;
     private final UserMapper userMapper;
 
-    /**
-     * Lista usuarios paginados. Si {@code companyId} es no-nulo, acota a esa empresa
-     * (defensa cross-tenant: un ADMIN normal no debe ver usuarios de otras empresas).
-     * Pasar {@code null} solo desde llamadas de SUPERADMIN.
-     */
+    /** Sobrecarga corta (compatibilidad hacia atrás): sin filtros nuevos de búsqueda/estado/documento. */
     @Transactional(readOnly = true)
     public Page<UserResponseDto> findAll(Pageable pageable, Long companyId, Long rolId,
             Instant fechaCreacionDesde, Instant fechaCreacionHasta) {
-        log.debug("Fetching users with pagination: {}, companyId={}, rolId={}, fechaCreacionDesde={}, fechaCreacionHasta={}",
-                pageable, companyId, rolId, fechaCreacionDesde, fechaCreacionHasta);
+        return findAll(pageable, companyId, null, rolId, null, null, fechaCreacionDesde, fechaCreacionHasta);
+    }
+
+    /**
+     * Lista usuarios paginados con filtros avanzados. Si {@code companyId} es no-nulo, acota a
+     * esa empresa (defensa cross-tenant: un ADMIN normal no debe ver usuarios de otras empresas).
+     * Pasar {@code null} solo desde llamadas de SUPERADMIN. Usado tanto por admin/users como por
+     * admin/reportes-clientes (mismo endpoint GET /api/users).
+     */
+    @Transactional(readOnly = true)
+    public Page<UserResponseDto> findAll(Pageable pageable, Long companyId, String search, Long rolId,
+            Boolean activo, String tipoDocumento, Instant fechaCreacionDesde, Instant fechaCreacionHasta) {
+        String term = AppUtils.searchTermOrNull(search);
+        String tipoDoc = AppUtils.searchTermOrNull(tipoDocumento);
+        log.debug("Fetching users with pagination: {}, companyId={}, search={}, rolId={}, activo={}, tipoDocumento={}, "
+                        + "fechaCreacionDesde={}, fechaCreacionHasta={}",
+                pageable, companyId, term, rolId, activo, tipoDoc, fechaCreacionDesde, fechaCreacionHasta);
         Page<com.microshop.users.infrastructure.persistence.entity.UsuarioEntity> page = companyId != null
-                ? usuarioRepository.findByCompanyIdFiltered(companyId, rolId, fechaCreacionDesde, fechaCreacionHasta, pageable)
-                : usuarioRepository.findAllFiltered(rolId, fechaCreacionDesde, fechaCreacionHasta, pageable);
+                ? usuarioRepository.findByCompanyIdFiltered(companyId, term, rolId, activo, tipoDoc, fechaCreacionDesde, fechaCreacionHasta, pageable)
+                : usuarioRepository.findAllFiltered(term, rolId, activo, tipoDoc, fechaCreacionDesde, fechaCreacionHasta, pageable);
         return page.map(userMapper::toDto);
     }
 

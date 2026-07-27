@@ -28,6 +28,7 @@ public class UserMapper {
                 usuario.getId(),
                 usuario.getUsername(),
                 usuario.getEmail(),
+                usuario.isActivo(),
                 new UserResponseDto.RolDto(
                         usuario.getRol().getId(),
                         usuario.getRol().getNombre(),
