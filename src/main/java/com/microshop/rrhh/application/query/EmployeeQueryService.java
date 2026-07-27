@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -59,9 +60,17 @@ public class EmployeeQueryService {
 
     /** Listado paginado server-side con búsqueda + filtro de estado opcionales. */
     public Page<EmployeeResponseDto> getEmployeesPaged(String search, Employee.EmployeeStatus estado, Pageable pageable) {
+        return getEmployeesPaged(search, estado, null, null, null, pageable);
+    }
+
+    /** Listado paginado server-side con búsqueda + filtro de estado + departamento + rango de fecha de ingreso opcionales. */
+    public Page<EmployeeResponseDto> getEmployeesPaged(String search, Employee.EmployeeStatus estado,
+                                                        Long departmentId, LocalDate fechaIngresoDesde,
+                                                        LocalDate fechaIngresoHasta, Pageable pageable) {
         Long tenantId = tenantContext.getCurrentTenantId();
         String term = AppUtils.searchTermOrNull(search);
-        return employeeRepository.searchPaged(tenantId, term, estado, pageable)
+        return employeeRepository.searchPaged(tenantId, term, estado, departmentId,
+                        fechaIngresoDesde, fechaIngresoHasta, pageable)
                 .map(employeeMapper::toDto);
     }
 

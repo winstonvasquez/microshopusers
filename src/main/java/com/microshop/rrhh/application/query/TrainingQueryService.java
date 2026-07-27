@@ -12,9 +12,12 @@ import com.microshop.rrhh.infrastructure.persistence.repository.TrainingReposito
 import com.microshop.users.shared.exception.NotFoundException;
 import com.microshop.users.shared.util.AppUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -49,6 +52,14 @@ public class TrainingQueryService {
         return trainingRepository.findByTenantIdAndEstado(tenantId, Training.TrainingStatus.valueOf(estado)).stream()
                 .map(t -> trainingMapper.toDto(t, participationRepository.countByTenantIdAndTrainingId(tenantId, t.getId())))
                 .toList();
+    }
+
+    /** Listado paginado server-side con filtro de estado + rango de fecha de inicio opcionales. */
+    public Page<TrainingResponseDto> getTrainingsPaged(Training.TrainingStatus estado, LocalDate fechaInicioDesde,
+                                                        LocalDate fechaInicioHasta, Pageable pageable) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        return trainingRepository.searchPaged(tenantId, estado, fechaInicioDesde, fechaInicioHasta, pageable)
+                .map(t -> trainingMapper.toDto(t, participationRepository.countByTenantIdAndTrainingId(tenantId, t.getId())));
     }
 
     public List<TrainingParticipationResponseDto> getParticipantsByTraining(Long trainingId) {

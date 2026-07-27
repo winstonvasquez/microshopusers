@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 
 @Repository
@@ -76,4 +77,30 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
            "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
            "WHERE uc.company.id = :companyId")
     java.util.List<UsuarioEntity> findAllByCompanyId(@Param("companyId") Long companyId);
+
+    /**
+     * Ver {@link #findByCompanyId(Long, Pageable)}, con filtros adicionales opcionales de rol
+     * y rango de fecha de creación (para el listado avanzado de usuarios).
+     */
+    @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
+           "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
+           "WHERE uc.company.id = :companyId " +
+           "AND (:rolId IS NULL OR u.rol.id = :rolId) " +
+           "AND (:fechaDesde IS NULL OR u.fechaCreacion >= :fechaDesde) " +
+           "AND (:fechaHasta IS NULL OR u.fechaCreacion <= :fechaHasta)")
+    Page<UsuarioEntity> findByCompanyIdFiltered(@Param("companyId") Long companyId,
+            @Param("rolId") Long rolId,
+            @Param("fechaDesde") Instant fechaDesde,
+            @Param("fechaHasta") Instant fechaHasta,
+            Pageable pageable);
+
+    /** Ver {@link #findByCompanyIdFiltered} pero sin acotar por empresa (uso exclusivo SUPERADMIN). */
+    @Query("SELECT u FROM UsuarioEntity u WHERE " +
+           "(:rolId IS NULL OR u.rol.id = :rolId) " +
+           "AND (:fechaDesde IS NULL OR u.fechaCreacion >= :fechaDesde) " +
+           "AND (:fechaHasta IS NULL OR u.fechaCreacion <= :fechaHasta)")
+    Page<UsuarioEntity> findAllFiltered(@Param("rolId") Long rolId,
+            @Param("fechaDesde") Instant fechaDesde,
+            @Param("fechaHasta") Instant fechaHasta,
+            Pageable pageable);
 }

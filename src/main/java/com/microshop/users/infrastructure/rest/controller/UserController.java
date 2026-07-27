@@ -25,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -34,6 +35,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -69,9 +73,15 @@ public class UserController {
     @GetMapping
     @Operation(summary = "Listar usuarios paginados")
     public ResponseEntity<Page<UserResponseDto>> getAllUsers(
-            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+            @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable,
+            @RequestParam(required = false) Long rolId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaCreacionHasta) {
         log.info("GET /api/users - Obteniendo usuarios con paginación");
-        Page<UserResponseDto> users = userQueryService.findAll(pageable, resolveTenantScope());
+        // LocalDate (yyyy-MM-dd, lo que envía el date-range del frontend) -> Instant día completo.
+        Instant desde = fechaCreacionDesde != null ? fechaCreacionDesde.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
+        Instant hasta = fechaCreacionHasta != null ? fechaCreacionHasta.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant() : null;
+        Page<UserResponseDto> users = userQueryService.findAll(pageable, resolveTenantScope(), rolId, desde, hasta);
         return ResponseEntity.ok(users);
     }
 

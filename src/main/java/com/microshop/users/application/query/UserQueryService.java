@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,11 +34,13 @@ public class UserQueryService {
      * Pasar {@code null} solo desde llamadas de SUPERADMIN.
      */
     @Transactional(readOnly = true)
-    public Page<UserResponseDto> findAll(Pageable pageable, Long companyId) {
-        log.debug("Fetching users with pagination: {}, companyId={}", pageable, companyId);
+    public Page<UserResponseDto> findAll(Pageable pageable, Long companyId, Long rolId,
+            Instant fechaCreacionDesde, Instant fechaCreacionHasta) {
+        log.debug("Fetching users with pagination: {}, companyId={}, rolId={}, fechaCreacionDesde={}, fechaCreacionHasta={}",
+                pageable, companyId, rolId, fechaCreacionDesde, fechaCreacionHasta);
         Page<com.microshop.users.infrastructure.persistence.entity.UsuarioEntity> page = companyId != null
-                ? usuarioRepository.findByCompanyId(companyId, pageable)
-                : usuarioRepository.findAll(pageable);
+                ? usuarioRepository.findByCompanyIdFiltered(companyId, rolId, fechaCreacionDesde, fechaCreacionHasta, pageable)
+                : usuarioRepository.findAllFiltered(rolId, fechaCreacionDesde, fechaCreacionHasta, pageable);
         return page.map(userMapper::toDto);
     }
 

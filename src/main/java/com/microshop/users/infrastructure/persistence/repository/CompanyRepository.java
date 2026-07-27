@@ -4,6 +4,7 @@ package com.microshop.users.infrastructure.persistence.repository;
 import com.microshop.users.application.dto.CompanyResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.CompanyEntity;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,11 +33,16 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, Long> {
 
     @Query(value = "SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c " +
             "WHERE (:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR c.ruc LIKE CONCAT('%', :search, '%')) " +
-            "AND (:active IS NULL OR c.isActive = :active)",
+            "AND (:active IS NULL OR c.isActive = :active) " +
+            "AND (:fechaDesde IS NULL OR c.fechaCreacion >= :fechaDesde) " +
+            "AND (:fechaHasta IS NULL OR c.fechaCreacion <= :fechaHasta)",
            countQuery = "SELECT COUNT(c) FROM CompanyEntity c " +
             "WHERE (:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR c.ruc LIKE CONCAT('%', :search, '%')) " +
-            "AND (:active IS NULL OR c.isActive = :active)")
-    Page<CompanyResponseDto> searchPaged(@Param("search") String search, @Param("active") Boolean active, Pageable pageable);
+            "AND (:active IS NULL OR c.isActive = :active) " +
+            "AND (:fechaDesde IS NULL OR c.fechaCreacion >= :fechaDesde) " +
+            "AND (:fechaHasta IS NULL OR c.fechaCreacion <= :fechaHasta)")
+    Page<CompanyResponseDto> searchPaged(@Param("search") String search, @Param("active") Boolean active,
+            @Param("fechaDesde") Instant fechaDesde, @Param("fechaHasta") Instant fechaHasta, Pageable pageable);
 
     /**
      * Ver {@link #searchPaged}, acotado ademas a UNA empresa cuando {@code companyId} es no-nulo.
@@ -46,12 +52,17 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, Long> {
     @Query(value = "SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c " +
             "WHERE (:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR c.ruc LIKE CONCAT('%', :search, '%')) " +
             "AND (:active IS NULL OR c.isActive = :active) " +
+            "AND (:fechaDesde IS NULL OR c.fechaCreacion >= :fechaDesde) " +
+            "AND (:fechaHasta IS NULL OR c.fechaCreacion <= :fechaHasta) " +
             "AND (:companyId IS NULL OR c.id = :companyId)",
            countQuery = "SELECT COUNT(c) FROM CompanyEntity c " +
             "WHERE (:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR c.ruc LIKE CONCAT('%', :search, '%')) " +
             "AND (:active IS NULL OR c.isActive = :active) " +
+            "AND (:fechaDesde IS NULL OR c.fechaCreacion >= :fechaDesde) " +
+            "AND (:fechaHasta IS NULL OR c.fechaCreacion <= :fechaHasta) " +
             "AND (:companyId IS NULL OR c.id = :companyId)")
     Page<CompanyResponseDto> searchPagedScoped(@Param("search") String search, @Param("active") Boolean active,
+            @Param("fechaDesde") Instant fechaDesde, @Param("fechaHasta") Instant fechaHasta,
             @Param("companyId") Long companyId, Pageable pageable);
 
     @Query("SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c WHERE c.id = :id")

@@ -1,6 +1,8 @@
 package com.microshop.rrhh.infrastructure.persistence.repository;
 
 import com.microshop.rrhh.domain.model.PerformanceEvaluation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -44,4 +47,18 @@ public interface PerformanceEvaluationRepository extends JpaRepository<Performan
     BigDecimal sumPuntajeByTenantId(@Param("tenantId") Long tenantId);
 
     long countByTenantId(Long tenantId);
+
+    // Page + solo ManyToOne (sin colecciones "details") → seguro con paginación, no infla filas.
+    @EntityGraph(attributePaths = {"employee", "evaluador"})
+    @Query("SELECT e FROM PerformanceEvaluation e WHERE e.tenantId = :tenantId " +
+           "AND (:estado IS NULL OR e.estado = :estado) " +
+           "AND (:tipo IS NULL OR e.tipoEvaluacion = :tipo) " +
+           "AND (:desde IS NULL OR e.fechaEvaluacion >= :desde) " +
+           "AND (:hasta IS NULL OR e.fechaEvaluacion <= :hasta)")
+    Page<PerformanceEvaluation> findFiltered(@Param("tenantId") Long tenantId,
+                                              @Param("estado") PerformanceEvaluation.EvaluationStatus estado,
+                                              @Param("tipo") PerformanceEvaluation.EvaluationType tipo,
+                                              @Param("desde") LocalDate desde,
+                                              @Param("hasta") LocalDate hasta,
+                                              Pageable pageable);
 }

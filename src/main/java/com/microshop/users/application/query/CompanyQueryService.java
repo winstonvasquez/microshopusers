@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,15 +50,17 @@ public class CompanyQueryService {
         return companyRepository.findProjectedById(companyId).map(List::of).orElseGet(List::of);
     }
 
-    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Pageable pageable) {
+    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Instant fechaCreacionDesde,
+            Instant fechaCreacionHasta, Pageable pageable) {
         String term = AppUtils.searchTermOrNull(search);
-        return companyRepository.searchPaged(term, active, pageable);
+        return companyRepository.searchPaged(term, active, fechaCreacionDesde, fechaCreacionHasta, pageable);
     }
 
-    /** Ver {@link #findPaged(String, Boolean, Pageable)}, acotado a UNA empresa cuando {@code companyId} es no-nulo. */
-    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Pageable pageable, Long companyId) {
+    /** Ver {@link #findPaged(String, Boolean, Instant, Instant, Pageable)}, acotado a UNA empresa cuando {@code companyId} es no-nulo. */
+    public Page<CompanyResponseDto> findPaged(String search, Boolean active, Instant fechaCreacionDesde,
+            Instant fechaCreacionHasta, Pageable pageable, Long companyId) {
         String term = AppUtils.searchTermOrNull(search);
-        return companyRepository.searchPagedScoped(term, active, companyId, pageable);
+        return companyRepository.searchPagedScoped(term, active, fechaCreacionDesde, fechaCreacionHasta, companyId, pageable);
     }
 
     public Optional<CompanyResponseDto> findById(@NonNull Long id) {

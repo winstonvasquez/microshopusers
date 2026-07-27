@@ -18,12 +18,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,9 +52,13 @@ public class EmployeeController {
             @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sort,
-            @RequestParam(required = false) Employee.EmployeeStatus status) {
+            @RequestParam(required = false) Employee.EmployeeStatus status,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaIngresoHasta) {
         Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
-        return ResponseEntity.ok(employeeQueryService.getEmployeesPaged(search, status, pageable));
+        return ResponseEntity.ok(employeeQueryService.getEmployeesPaged(
+                search, status, departmentId, fechaIngresoDesde, fechaIngresoHasta, pageable));
     }
 
     /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */

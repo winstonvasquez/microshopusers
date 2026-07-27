@@ -7,9 +7,12 @@ import com.microshop.rrhh.domain.model.PerformanceEvaluation;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
 import com.microshop.users.shared.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -50,23 +53,21 @@ public class EvaluationQueryService {
                 .toList();
     }
 
+    /** Listado paginado server-side con filtros opcionales de estado, tipo y rango de fecha de evaluación. */
+    public Page<EvaluationResponseDto> getAllPaged(PerformanceEvaluation.EvaluationStatus estado,
+                                                    PerformanceEvaluation.EvaluationType tipo,
+                                                    LocalDate fechaEvaluacionDesde,
+                                                    LocalDate fechaEvaluacionHasta,
+                                                    Pageable pageable) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        return evaluationRepository.findFiltered(
+                        tenantId, estado, tipo, fechaEvaluacionDesde, fechaEvaluacionHasta, pageable)
+                .map(evaluationMapper::toDto);
+    }
+
     public List<EvaluationResponseDto> getByEvaluador(Long evaluadorId) {
         Long tenantId = tenantContext.getCurrentTenantId();
         return evaluationRepository.findByTenantIdAndEvaluadorId(tenantId, evaluadorId).stream()
-                .map(evaluationMapper::toDto)
-                .toList();
-    }
-
-    /**
-     * Trae todas las evaluaciones del tenant que matcheen los mismos filtros
-     * (estado, tipo) que la lista, para exportación server-side (sin paginación real).
-     */
-    public List<EvaluationResponseDto> getAllForExport(PerformanceEvaluation.EvaluationStatus estado,
-                                                        PerformanceEvaluation.EvaluationType tipoEvaluacion) {
-        Long tenantId = tenantContext.getCurrentTenantId();
-        return evaluationRepository.findByTenantId(tenantId).stream()
-                .filter(e -> estado == null || e.getEstado() == estado)
-                .filter(e -> tipoEvaluacion == null || e.getTipoEvaluacion() == tipoEvaluacion)
                 .map(evaluationMapper::toDto)
                 .toList();
     }

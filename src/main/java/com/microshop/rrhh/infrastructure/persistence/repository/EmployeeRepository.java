@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,10 +44,16 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
            "  LOWER(e.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "  LOWER(e.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "  LOWER(e.documentoIdentidad) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:estado IS NULL OR e.estado = :estado)")
+           "AND (:estado IS NULL OR e.estado = :estado) " +
+           "AND (:departmentId IS NULL OR e.department.id = :departmentId) " +
+           "AND (:fechaIngresoDesde IS NULL OR e.fechaIngreso >= :fechaIngresoDesde) " +
+           "AND (:fechaIngresoHasta IS NULL OR e.fechaIngreso <= :fechaIngresoHasta)")
     Page<Employee> searchPaged(@Param("tenantId") Long tenantId,
                                @Param("search") String search,
                                @Param("estado") Employee.EmployeeStatus estado,
+                               @Param("departmentId") Long departmentId,
+                               @Param("fechaIngresoDesde") LocalDate fechaIngresoDesde,
+                               @Param("fechaIngresoHasta") LocalDate fechaIngresoHasta,
                                Pageable pageable);
 
     long countByTenantId(Long tenantId);

@@ -3,19 +3,27 @@ package com.microshop.rrhh.infrastructure.rest.controller;
 import com.microshop.rrhh.application.command.TrainingCommandService;
 import com.microshop.rrhh.application.dto.training.*;
 import com.microshop.rrhh.application.query.TrainingQueryService;
+import com.microshop.rrhh.domain.model.Training;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.util.SpreadsheetExporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -33,9 +41,36 @@ public class TrainingController {
     private static final DateTimeFormatter FECHA_FORMATO = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @GetMapping
-    @Operation(summary = "Listar todas las capacitaciones")
-    public ResponseEntity<List<TrainingResponseDto>> getAll() {
-        return ResponseEntity.ok(trainingQueryService.getAll());
+    @Operation(summary = "Listar capacitaciones paginado (estado + rango fecha inicio, server-side)")
+    public ResponseEntity<Page<TrainingResponseDto>> getAll(
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_PAGE) int page,
+            @RequestParam(defaultValue = AppConstants.Paginacion.DEFAULT_SIZE) int size,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Training.TrainingStatus estado,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicioHasta) {
+        Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
+        return ResponseEntity.ok(trainingQueryService.getTrainingsPaged(estado, fechaInicioDesde, fechaInicioHasta, pageable));
+    }
+
+    /** Campos por los que se permite ordenar (whitelist anti PropertyReference/500). */
+    private static final List<String> CAMPOS_ORDENABLES =
+            List.of("fechaInicio", "fechaFin", "nombre", "createdAt");
+
+    /** Parsea "campo,dir" (ej. "fechaInicio,desc"); si es inválido usa fechaInicio DESC. */
+    private static Sort resolveSort(String sort) {
+        Sort porDefecto = Sort.by("fechaInicio").descending();
+        if (sort == null || sort.isBlank()) {
+            return porDefecto;
+        }
+        String[] partes = sort.split(",");
+        String campo = partes[0].trim();
+        if (!CAMPOS_ORDENABLES.contains(campo)) {
+            return porDefecto;
+        }
+        Sort.Direction dir = partes.length > 1 && "desc".equalsIgnoreCase(partes[1].trim())
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(dir, campo);
     }
 
     @GetMapping("/export")
