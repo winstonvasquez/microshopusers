@@ -79,6 +79,14 @@ public class PayrollController {
         return ResponseEntity.status(HttpStatus.CREATED).body(payrollCommandService.createPayroll(request));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_INTERNAL)
+    @Operation(summary = "Corregir planilla individual (solo en estado GENERADO)")
+    public ResponseEntity<PayrollResponseDto> updatePayroll(@PathVariable Long id,
+            @Valid @RequestBody PayrollRequestDto request) {
+        return ResponseEntity.ok(payrollCommandService.updatePayroll(id, request));
+    }
+
     @PostMapping("/run")
     @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_INTERNAL)
     @Operation(summary = "Generar planillas para un periodo")

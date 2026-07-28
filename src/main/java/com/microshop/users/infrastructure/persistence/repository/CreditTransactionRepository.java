@@ -21,9 +21,9 @@ public interface CreditTransactionRepository extends JpaRepository<CreditTransac
      * movimiento — reemplaza al historial sin filtros de /me/credit/history.
      */
     @Query("SELECT t FROM CreditTransactionEntity t WHERE t.creditAccount.clienteId = :clienteId " +
-           "AND (:type IS NULL OR :type = '' OR t.type = :type) " +
-           "AND (:desde IS NULL OR t.createdAt >= :desde) " +
-           "AND (:hasta IS NULL OR t.createdAt <= :hasta)")
+           "AND (CAST(:type AS String) IS NULL OR CAST(:type AS String) = '' OR t.type = :type) " +
+           "AND (CAST(:desde AS Instant) IS NULL OR t.createdAt >= :desde) " +
+           "AND (CAST(:hasta AS Instant) IS NULL OR t.createdAt <= :hasta)")
     Page<CreditTransactionEntity> searchPaged(@Param("clienteId") Long clienteId,
                                               @Param("type") String type,
                                               @Param("desde") Instant desde,

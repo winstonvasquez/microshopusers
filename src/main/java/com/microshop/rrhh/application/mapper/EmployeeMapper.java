@@ -5,6 +5,7 @@ import com.microshop.rrhh.application.dto.employee.EmployeeResponseDto;
 import com.microshop.rrhh.domain.model.Department;
 import com.microshop.rrhh.domain.model.Employee;
 import com.microshop.rrhh.domain.model.Position;
+import com.microshop.rrhh.shared.constants.ApiPaths;
 import com.microshop.users.shared.util.AppUtils;
 import org.springframework.stereotype.Component;
 
@@ -35,7 +36,7 @@ public class EmployeeMapper {
                 .distrito(dto.distrito())
                 .provincia(dto.provincia())
                 .departamentoGeo(dto.departamentoGeo())
-                .fotoUrl(dto.fotoUrl())
+                .fotoUrl(esUrlFotoBinaria(dto.fotoUrl()) ? null : dto.fotoUrl())
                 .linkedinUrl(dto.linkedinUrl())
                 .nivelEducacion(dto.nivelEducacion())
                 .profesion(dto.profesion())
@@ -43,6 +44,7 @@ public class EmployeeMapper {
                 .sistemaPrevisional(dto.sistemaPrevisional() != null ? dto.sistemaPrevisional() : "ONP")
                 .afpNombre(dto.afpNombre())
                 .storeId(dto.storeId())
+                .userId(dto.userId())
                 .estado(dto.estado() != null ? dto.estado() : Employee.EmployeeStatus.ACTIVO)
                 .build();
         return entity;
@@ -75,7 +77,9 @@ public class EmployeeMapper {
         if (dto.distrito() != null) entity.setDistrito(dto.distrito());
         if (dto.provincia() != null) entity.setProvincia(dto.provincia());
         if (dto.departamentoGeo() != null) entity.setDepartamentoGeo(dto.departamentoGeo());
-        if (dto.fotoUrl() != null) entity.setFotoUrl(dto.fotoUrl());
+        // foto_url es SOLO para fotos externas. Si el formulario reenvía la URL calculada
+        // del binario (round-trip de /hr/api/employees/{id}/foto), se conserva el valor actual.
+        if (dto.fotoUrl() != null && !esUrlFotoBinaria(dto.fotoUrl())) entity.setFotoUrl(dto.fotoUrl());
         if (dto.linkedinUrl() != null) entity.setLinkedinUrl(dto.linkedinUrl());
         if (dto.nivelEducacion() != null) entity.setNivelEducacion(dto.nivelEducacion());
         if (dto.profesion() != null) entity.setProfesion(dto.profesion());
@@ -83,7 +87,23 @@ public class EmployeeMapper {
         if (dto.sistemaPrevisional() != null) entity.setSistemaPrevisional(dto.sistemaPrevisional());
         if (dto.afpNombre() != null) entity.setAfpNombre(dto.afpNombre());
         if (dto.storeId() != null) entity.setStoreId(dto.storeId());
+        if (dto.userId() != null) entity.setUserId(dto.userId());
         if (dto.estado() != null) entity.setEstado(dto.estado());
+    }
+
+    /**
+     * URL de la foto expuesta al frontend: apunta al endpoint binario cuando la foto
+     * está en BD; si no, cae a la foto_url externa guardada (fallback).
+     */
+    /** {@code true} si la URL es la ruta calculada de la foto binaria de este servicio. */
+    private static boolean esUrlFotoBinaria(String url) {
+        return url != null && url.startsWith(ApiPaths.EMPLOYEES + "/") && url.endsWith("/foto");
+    }
+
+    public static String resolveFotoUrl(Employee entity) {
+        return (entity.getFotoData() != null)
+                ? ApiPaths.EMPLOYEES + "/" + entity.getId() + "/foto"
+                : entity.getFotoUrl();
     }
 
     public EmployeeResponseDto toDto(Employee entity) {
@@ -121,7 +141,7 @@ public class EmployeeMapper {
                 .distrito(entity.getDistrito())
                 .provincia(entity.getProvincia())
                 .departamentoGeo(entity.getDepartamentoGeo())
-                .fotoUrl(entity.getFotoUrl())
+                .fotoUrl(resolveFotoUrl(entity))
                 .linkedinUrl(entity.getLinkedinUrl())
                 .nivelEducacion(entity.getNivelEducacion())
                 .profesion(entity.getProfesion())
@@ -129,6 +149,7 @@ public class EmployeeMapper {
                 .sistemaPrevisional(entity.getSistemaPrevisional())
                 .afpNombre(entity.getAfpNombre())
                 .storeId(entity.getStoreId())
+                .userId(entity.getUserId())
                 .estado(entity.getEstado())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

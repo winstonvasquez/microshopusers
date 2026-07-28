@@ -36,12 +36,12 @@ public interface PositionRepository extends JpaRepository<Position, Long> {
     List<Position> searchByTenantIdAndTerm(@Param("tenantId") Long tenantId, @Param("term") String term);
 
     @Query("SELECT p FROM Position p WHERE p.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:departmentId IS NULL OR p.department.id = :departmentId) " +
-           "AND (:activo IS NULL OR p.activo = :activo) " +
-           "AND (:nivel IS NULL OR :nivel = '' OR p.nivel = :nivel)")
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(p.nombre) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(p.codigo) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR p.department.id = :departmentId) " +
+           "AND (CAST(:activo AS Boolean) IS NULL OR p.activo = :activo) " +
+           "AND (CAST(:nivel AS String) IS NULL OR CAST(:nivel AS String) = '' OR p.nivel = :nivel)")
     Page<Position> searchPaged(@Param("tenantId") Long tenantId,
                                @Param("search") String search,
                                @Param("departmentId") Long departmentId,

@@ -31,15 +31,15 @@ public interface TrainingRepository extends JpaRepository<Training, Long> {
     // ':search = ''' en vez de 'IS NULL' para el bind String (mismo gotcha documentado en microshopventas).
     @Query("SELECT t FROM Training t WHERE t.tenantId = :tenantId " +
            "AND (:estado IS NULL OR t.estado = :estado) " +
-           "AND (:instructor = '' OR t.instructor = :instructor) " +
-           "AND (:search = '' " +
-           "     OR LOWER(t.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(t.instructor) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(t.descripcion) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:fechaInicioDesde IS NULL OR t.fechaInicio >= :fechaInicioDesde) " +
-           "AND (:fechaInicioHasta IS NULL OR t.fechaInicio <= :fechaInicioHasta) " +
-           "AND (:fechaFinDesde IS NULL OR t.fechaFin >= :fechaFinDesde) " +
-           "AND (:fechaFinHasta IS NULL OR t.fechaFin <= :fechaFinHasta)")
+           "AND (CAST(:instructor AS String) = '' OR t.instructor = :instructor) " +
+           "AND (CAST(:search AS String) = '' " +
+           "     OR LOWER(t.nombre) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(t.instructor) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(t.descripcion) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:fechaInicioDesde AS LocalDate) IS NULL OR t.fechaInicio >= :fechaInicioDesde) " +
+           "AND (CAST(:fechaInicioHasta AS LocalDate) IS NULL OR t.fechaInicio <= :fechaInicioHasta) " +
+           "AND (CAST(:fechaFinDesde AS LocalDate) IS NULL OR t.fechaFin >= :fechaFinDesde) " +
+           "AND (CAST(:fechaFinHasta AS LocalDate) IS NULL OR t.fechaFin <= :fechaFinHasta)")
     Page<Training> searchPaged(@Param("tenantId") Long tenantId,
                                 @Param("search") String search,
                                 @Param("estado") Training.TrainingStatus estado,

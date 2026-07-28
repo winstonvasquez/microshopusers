@@ -50,14 +50,14 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     // Filtros avanzados: manager, departamento padre y rango de fecha de creación.
     @EntityGraph(attributePaths = {"manager", "parent"})
     @Query("SELECT d FROM Department d WHERE d.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(d.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(d.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:activo IS NULL OR d.activo = :activo) " +
-           "AND (:managerId IS NULL OR d.manager.id = :managerId) " +
-           "AND (:parentId IS NULL OR d.parent.id = :parentId) " +
-           "AND (:createdAtDesde IS NULL OR d.createdAt >= :createdAtDesde) " +
-           "AND (:createdAtHasta IS NULL OR d.createdAt <= :createdAtHasta)")
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(d.nombre) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(d.codigo) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:activo AS Boolean) IS NULL OR d.activo = :activo) " +
+           "AND (CAST(:managerId AS Long) IS NULL OR d.manager.id = :managerId) " +
+           "AND (CAST(:parentId AS Long) IS NULL OR d.parent.id = :parentId) " +
+           "AND (CAST(:createdAtDesde AS LocalDateTime) IS NULL OR d.createdAt >= :createdAtDesde) " +
+           "AND (CAST(:createdAtHasta AS LocalDateTime) IS NULL OR d.createdAt <= :createdAtHasta)")
     Page<Department> searchPaged(@Param("tenantId") Long tenantId,
                                  @Param("search") String search,
                                  @Param("activo") Boolean activo,

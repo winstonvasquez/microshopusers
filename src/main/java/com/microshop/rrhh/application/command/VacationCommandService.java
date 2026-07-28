@@ -41,15 +41,39 @@ public class VacationCommandService {
         Employee employee = employeeRepository.findByIdAndTenantId(request.employeeId(), tenantId)
                 .orElseThrow(() -> new NotFoundException(msg.get("vacation.employee.not.found")));
 
+        return persistirSolicitud(request, employee, tenantId);
+    }
+
+    /**
+     * Autoservicio: crea la solicitud SIEMPRE a nombre del empleado vinculado al usuario
+     * autenticado (JWT). El {@code employeeId} que venga en el body se IGNORA por completo,
+     * de modo que un empleado no puede registrar vacaciones a nombre de otro.
+     */
+    public VacationResponseDto createOwnVacationRequest(@Valid VacationRequestDto request) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        Long userId = tenantContext.getCurrentUserId();
+        if (userId == null) {
+            throw new NotFoundException("El usuario no tiene un empleado asociado");
+        }
+
+        Employee employee = employeeRepository.findByTenantIdAndUserId(tenantId, userId)
+                .orElseThrow(() -> new NotFoundException("El usuario no tiene un empleado asociado"));
+
+        return persistirSolicitud(request, employee, tenantId);
+    }
+
+    /** Validación de fechas + persistencia común a la creación admin y de autoservicio. */
+    private VacationResponseDto persistirSolicitud(VacationRequestDto request, Employee employee, Long tenantId) {
         if (request.fechaFin().isBefore(request.fechaInicio())) {
             throw new BusinessException(msg.get("vacation.fechaFin.invalid"));
         }
 
+        // El mapper toma el empleado del parámetro, no de request.employeeId().
         VacationRequest vacation = vacationMapper.toEntity(request, tenantId, employee);
         VacationRequest saved = vacationRequestRepository.save(vacation);
 
         log.info("Solicitud de vacaciones creada: {} - Empleado: {} - Tenant: {}",
-                saved.getId(), request.employeeId(), tenantId);
+                saved.getId(), employee.getId(), tenantId);
         return vacationMapper.toDto(saved);
     }
 

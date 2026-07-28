@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 import javax.sql.DataSource;
 
@@ -20,6 +21,9 @@ import javax.sql.DataSource;
  * - dbshoprrhh: empleados, planillas, vacaciones, evaluaciones
  */
 @Configuration
+// Los servicios arrancan con spring.main.lazy-initialization=true (ver erp.ps1):
+// sin @Lazy(false) este bean no se instancia y las migraciones nunca se aplican.
+@Lazy(false)
 @RequiredArgsConstructor
 @Slf4j
 public class FlywayConfig {

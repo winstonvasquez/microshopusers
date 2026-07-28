@@ -51,6 +51,11 @@ public class UserCommandService {
                 .persona(persona)
                 .build();
 
+        // `activo` es opcional en el alta: null = activo (valor por defecto de AuditEntity).
+        if (dto.activo() != null) {
+            usuario.setActivo(dto.activo());
+        }
+
         usuario = usuarioRepository.save(usuario);
         log.info("User created successfully: {}", usuario.getId());
 
@@ -69,8 +74,22 @@ public class UserCommandService {
         usuario.setUsername(dto.username());
         usuario.setEmail(dto.email());
 
+        // Contraseña opcional al editar: en blanco = mantener la actual. La restricción
+        // @NotBlank/@Size del DTO solo corre en el grupo OnCreate (POST), así que la
+        // longitud mínima se valida aquí cuando el caller SÍ envía una contraseña nueva.
         if (dto.password() != null && !dto.password().isBlank()) {
+            if (dto.password().length() < AppConstants.Seguridad.PASSWORD_MIN_LENGTH) {
+                throw new BusinessException(
+                        "La contraseña debe tener al menos "
+                                + AppConstants.Seguridad.PASSWORD_MIN_LENGTH + " caracteres");
+            }
             usuario.setPassword(passwordEncoder.encode(dto.password()));
+        }
+
+        // `activo` opcional: null = no tocar el estado actual (permite activar/desactivar
+        // desde el formulario sin depender del DELETE de baja lógica).
+        if (dto.activo() != null) {
+            usuario.setActivo(dto.activo());
         }
 
         if (!usuario.getRol().getId().equals(dto.rolId())) {

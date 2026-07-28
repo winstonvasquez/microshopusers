@@ -25,10 +25,10 @@ public interface EvaluationCriteriaRepository extends JpaRepository<EvaluationCr
      * estado (activo/inactivo) — reemplaza el filtrado client-side de criteria-list.
      */
     @Query("SELECT c FROM EvaluationCriteria c WHERE c.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(c.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(c.descripcion) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:activo IS NULL OR c.activo = :activo)")
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(c.nombre) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(c.descripcion) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:activo AS Boolean) IS NULL OR c.activo = :activo)")
     Page<EvaluationCriteria> searchPaged(@Param("tenantId") Long tenantId,
                                           @Param("search") String search,
                                           @Param("activo") Boolean activo,

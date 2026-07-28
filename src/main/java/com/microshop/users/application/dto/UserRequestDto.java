@@ -1,5 +1,7 @@
 package com.microshop.users.application.dto;
 
+import com.microshop.users.application.dto.ValidationGroups.OnCreate;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,9 +17,21 @@ public record UserRequestDto(
 
         @NotBlank(message = "El email es obligatorio") @Email(message = "El email debe ser válido") @Size(max = 100, message = "El email no puede exceder los 100 caracteres") String email,
 
-        @NotBlank(message = "La contraseña es obligatoria") @Size(min = 6, max = 100, message = "La contraseña debe tener entre 6 y 100 caracteres") String password,
+        /*
+         * La contraseña SOLO es obligatoria al crear (grupo OnCreate). En el update se
+         * envía en blanco cuando no se quiere cambiar — UserCommandService ignora el
+         * valor vacío y valida la longitud mínima únicamente si viene con contenido.
+         */
+        @NotBlank(message = "La contraseña es obligatoria", groups = OnCreate.class) @Size(min = 6, max = 100, message = "La contraseña debe tener entre 6 y 100 caracteres", groups = OnCreate.class) String password,
 
         @NotNull(message = "El rol es obligatorio") Long rolId,
+
+        /**
+         * Estado activo/inactivo del usuario (borrado lógico). Opcional: si llega
+         * {@code null} en un update NO se modifica el estado actual; en el alta,
+         * {@code null} equivale a activo.
+         */
+        Boolean activo,
 
         // Datos de persona
         @NotBlank(message = "Los nombres son obligatorios") @Size(max = 100, message = "Los nombres no pueden exceder los 100 caracteres") String nombres,

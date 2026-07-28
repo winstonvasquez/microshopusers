@@ -43,28 +43,28 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     // nacimiento. Sigue el patrón (:x IS NULL OR :x = '' OR ...) ya usado en :search de este archivo.
     @EntityGraph(attributePaths = {"department", "position", "supervisor"})
     @Query("SELECT e FROM Employee e WHERE e.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(e.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.documentoIdentidad) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(e.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.documentoIdentidad) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
            "AND (:estado IS NULL OR e.estado = :estado) " +
-           "AND (:departmentId IS NULL OR e.department.id = :departmentId) " +
-           "AND (:positionId IS NULL OR e.position.id = :positionId) " +
-           "AND (:supervisorId IS NULL OR e.supervisor.id = :supervisorId) " +
-           "AND (:tipoDocumento IS NULL OR :tipoDocumento = '' OR e.tipoDocumento = :tipoDocumento) " +
-           "AND (:sistemaPrevisional IS NULL OR :sistemaPrevisional = '' OR e.sistemaPrevisional = :sistemaPrevisional) " +
-           "AND (:afpNombre IS NULL OR :afpNombre = '' OR e.afpNombre = :afpNombre) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR e.department.id = :departmentId) " +
+           "AND (CAST(:positionId AS Long) IS NULL OR e.position.id = :positionId) " +
+           "AND (CAST(:supervisorId AS Long) IS NULL OR e.supervisor.id = :supervisorId) " +
+           "AND (CAST(:tipoDocumento AS String) IS NULL OR CAST(:tipoDocumento AS String) = '' OR e.tipoDocumento = :tipoDocumento) " +
+           "AND (CAST(:sistemaPrevisional AS String) IS NULL OR CAST(:sistemaPrevisional AS String) = '' OR e.sistemaPrevisional = :sistemaPrevisional) " +
+           "AND (CAST(:afpNombre AS String) IS NULL OR CAST(:afpNombre AS String) = '' OR e.afpNombre = :afpNombre) " +
            "AND (:genero IS NULL OR e.genero = :genero) " +
            "AND (:estadoCivil IS NULL OR e.estadoCivil = :estadoCivil) " +
            "AND (:tipoContrato IS NULL OR EXISTS (SELECT 1 FROM Contract c WHERE c.employee = e " +
            "  AND c.tipoContrato = :tipoContrato AND c.estado = :estadoContratoVigente)) " +
-           "AND (:fechaIngresoDesde IS NULL OR e.fechaIngreso >= :fechaIngresoDesde) " +
-           "AND (:fechaIngresoHasta IS NULL OR e.fechaIngreso <= :fechaIngresoHasta) " +
-           "AND (:fechaSalidaDesde IS NULL OR e.fechaSalida >= :fechaSalidaDesde) " +
-           "AND (:fechaSalidaHasta IS NULL OR e.fechaSalida <= :fechaSalidaHasta) " +
-           "AND (:fechaNacimientoDesde IS NULL OR e.fechaNacimiento >= :fechaNacimientoDesde) " +
-           "AND (:fechaNacimientoHasta IS NULL OR e.fechaNacimiento <= :fechaNacimientoHasta)")
+           "AND (CAST(:fechaIngresoDesde AS LocalDate) IS NULL OR e.fechaIngreso >= :fechaIngresoDesde) " +
+           "AND (CAST(:fechaIngresoHasta AS LocalDate) IS NULL OR e.fechaIngreso <= :fechaIngresoHasta) " +
+           "AND (CAST(:fechaSalidaDesde AS LocalDate) IS NULL OR e.fechaSalida >= :fechaSalidaDesde) " +
+           "AND (CAST(:fechaSalidaHasta AS LocalDate) IS NULL OR e.fechaSalida <= :fechaSalidaHasta) " +
+           "AND (CAST(:fechaNacimientoDesde AS LocalDate) IS NULL OR e.fechaNacimiento >= :fechaNacimientoDesde) " +
+           "AND (CAST(:fechaNacimientoHasta AS LocalDate) IS NULL OR e.fechaNacimiento <= :fechaNacimientoHasta)")
     Page<Employee> searchPaged(@Param("tenantId") Long tenantId,
                                @Param("search") String search,
                                @Param("estado") Employee.EmployeeStatus estado,

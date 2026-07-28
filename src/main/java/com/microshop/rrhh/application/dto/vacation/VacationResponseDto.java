@@ -14,6 +14,7 @@ public record VacationResponseDto(
     LocalDate fechaFin,
     Integer dias,
     VacationRequest.VacationStatus estado,
+    VacationRequest.VacationType tipoVacacion,
     String motivo,
     Long aprobadoPor,
     LocalDate fechaAprobacion,

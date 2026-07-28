@@ -7,13 +7,18 @@ import com.microshop.users.infrastructure.persistence.entity.UserCompanyEntity;
 import com.microshop.users.infrastructure.persistence.entity.UserCompanyRoleEntity;
 import com.microshop.users.infrastructure.persistence.entity.SaasSubscriptionEntity;
 import com.microshop.users.infrastructure.persistence.entity.SaasPlanEntity;
+import com.microshop.users.infrastructure.persistence.entity.CompanyEntity;
 import com.microshop.users.application.dto.CompanyResponseDto;
 import com.microshop.users.application.dto.CompanyUserDto;
 import com.microshop.users.application.dto.CompanySubscriptionDto;
 import com.microshop.users.application.mapper.CompanyMapper;
 import com.microshop.users.shared.util.AppUtils;
+import com.microshop.users.shared.util.ImagenBinariaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,6 +99,29 @@ public class CompanyQueryService {
 
     public Optional<CompanyResponseDto> findFullById(@NonNull Long id) {
         return companyRepository.findById(id).map(companyMapper::toDto);
+    }
+
+    /**
+     * Sirve el logotipo binario con headers ETag y Cache-Control.
+     * Retorna 304 Not Modified si el cliente envía el ETag vigente, y 404 si la empresa
+     * no existe o no tiene logo en BD.
+     */
+    public ResponseEntity<byte[]> serveLogo(@NonNull Long id, String ifNoneMatch) {
+        CompanyEntity company = companyRepository.findById(id).orElse(null);
+        if (company == null || company.getLogoData() == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String etag = "\"" + company.getLogoEtag() + "\"";
+        if (etag.equals(ifNoneMatch)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, ImagenBinariaUtils.resolveContentType(company.getLogoMime()))
+                .header(HttpHeaders.ETAG, etag)
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .body(company.getLogoData());
     }
 
     public List<CompanyUserDto> findUsersByCompanyId(Long companyId) {

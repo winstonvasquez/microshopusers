@@ -20,5 +20,14 @@ public record PayrollRequestDto(
     BigDecimal bonos,
 
     @DecimalMin(value = "0.0", message = "{payroll.descuentos.min}")
-    BigDecimal descuentos
+    BigDecimal descuentos,
+
+    @DecimalMin(value = "0.0", message = "{payroll.asignacionFamiliar.min}")
+    BigDecimal asignacionFamiliar,
+
+    @DecimalMin(value = "0.0", message = "{payroll.montoHorasExtras.min}")
+    BigDecimal montoHorasExtras,
+
+    @Min(value = 0, message = "{payroll.diasTrabajados.min}")
+    Integer diasTrabajados
 ) {}

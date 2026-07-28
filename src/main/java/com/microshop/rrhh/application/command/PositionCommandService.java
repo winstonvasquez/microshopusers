@@ -92,6 +92,17 @@ public class PositionCommandService {
         log.info("Puesto desactivado: {} - Tenant: {}", id, tenantId);
     }
 
+    public void activatePosition(Long id) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+
+        Position position = positionRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException(msg.get("position.not.found")));
+
+        position.setActivo(true);
+        positionRepository.save(position);
+        log.info("Puesto reactivado: {} - Tenant: {}", id, tenantId);
+    }
+
     public void deletePosition(Long id) {
         Long tenantId = tenantContext.getCurrentTenantId();
 

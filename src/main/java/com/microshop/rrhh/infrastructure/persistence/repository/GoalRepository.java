@@ -39,20 +39,20 @@ public interface GoalRepository extends JpaRepository<Goal, Long> {
     // rangos de fecha de inicio/fin — reemplaza el filtrado client-side de goal-list.
     @EntityGraph(attributePaths = {"employee", "asignadoPor"})
     @Query("SELECT g FROM Goal g WHERE g.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(g.titulo) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(g.descripcion) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(g.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(g.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(g.titulo) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(g.descripcion) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(g.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(g.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
            "AND (:estado IS NULL OR g.estado = :estado) " +
            "AND (:prioridad IS NULL OR g.prioridad = :prioridad) " +
-           "AND (:employeeId IS NULL OR g.employee.id = :employeeId) " +
-           "AND (:asignadoPorId IS NULL OR g.asignadoPor.id = :asignadoPorId) " +
-           "AND (:departmentId IS NULL OR g.employee.department.id = :departmentId) " +
-           "AND (:fechaInicioDesde IS NULL OR g.fechaInicio >= :fechaInicioDesde) " +
-           "AND (:fechaInicioHasta IS NULL OR g.fechaInicio <= :fechaInicioHasta) " +
-           "AND (:fechaFinDesde IS NULL OR g.fechaFin >= :fechaFinDesde) " +
-           "AND (:fechaFinHasta IS NULL OR g.fechaFin <= :fechaFinHasta)")
+           "AND (CAST(:employeeId AS Long) IS NULL OR g.employee.id = :employeeId) " +
+           "AND (CAST(:asignadoPorId AS Long) IS NULL OR g.asignadoPor.id = :asignadoPorId) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR g.employee.department.id = :departmentId) " +
+           "AND (CAST(:fechaInicioDesde AS LocalDate) IS NULL OR g.fechaInicio >= :fechaInicioDesde) " +
+           "AND (CAST(:fechaInicioHasta AS LocalDate) IS NULL OR g.fechaInicio <= :fechaInicioHasta) " +
+           "AND (CAST(:fechaFinDesde AS LocalDate) IS NULL OR g.fechaFin >= :fechaFinDesde) " +
+           "AND (CAST(:fechaFinHasta AS LocalDate) IS NULL OR g.fechaFin <= :fechaFinHasta)")
     Page<Goal> searchPaged(@Param("tenantId") Long tenantId,
                            @Param("search") String search,
                            @Param("estado") Goal.GoalStatus estado,

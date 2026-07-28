@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -258,5 +259,43 @@ public class EmployeeController {
     public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) {
         employeeCommandService.deleteEmployee(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Foto binaria almacenada en BD (V8 rrhh) ─────────────────
+
+    /**
+     * GET /hr/api/employees/{id}/foto — PÚBLICO (mismo patrón que el banner de ventas),
+     * cacheado con ETag + Cache-Control. Solo expone el binario, ningún dato personal.
+     */
+    @GetMapping("/{id}/foto")
+    @Operation(summary = "Servir foto binaria del empleado", description = "Público, cacheado con ETag")
+    public ResponseEntity<byte[]> getEmployeeFoto(
+            @PathVariable Long id,
+            @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+        return employeeQueryService.serveFoto(id, ifNoneMatch);
+    }
+
+    /**
+     * POST /hr/api/employees/{id}/foto — multipart protegido. Valida tipo, tamaño y magic bytes.
+     * El tenant se resuelve del JWT (TenantContext) y el empleado se busca con lookup
+     * acotado {@code findByIdAndTenantId} — de ahí que no reciba companyId por parámetro.
+     */
+    @PostMapping(value = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Subir foto binaria del empleado", description = "JPEG/PNG/WebP, máx 500 KB")
+    public ResponseEntity<EmployeeResponseDto> uploadEmployeeFoto(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(employeeCommandService.uploadFoto(id, file));
+    }
+
+    /**
+     * DELETE /hr/api/employees/{id}/foto — borra el binario de la foto y sus metadatos.
+     * Igual que el POST, el tenant sale del JWT (lookup {@code findByIdAndTenantId}).
+     */
+    @DeleteMapping("/{id}/foto")
+    @Operation(summary = "Eliminar foto binaria del empleado",
+               description = "Borra el blob y sus metadatos (mime/etag/size); el empleado queda sin foto.")
+    public ResponseEntity<EmployeeResponseDto> deleteEmployeeFoto(@PathVariable Long id) {
+        return ResponseEntity.ok(employeeCommandService.deleteFoto(id));
     }
 }

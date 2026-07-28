@@ -4,6 +4,7 @@ package com.microshop.users.application.mapper;
 import com.microshop.users.infrastructure.persistence.entity.CompanyEntity;
 import com.microshop.users.application.dto.CompanyRequestDto;
 import com.microshop.users.application.dto.CompanyResponseDto;
+import com.microshop.users.shared.constants.ApiPaths;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -33,7 +34,17 @@ public class CompanyMapper {
                 entity.getAddress(),
                 entity.getPhone(),
                 entity.getEmail(),
-                entity.getLogoUrl(),
+                resolveLogoUrl(entity),
                 entity.getDomain());
+    }
+
+    /**
+     * URL del logotipo expuesta al frontend: apunta al endpoint binario cuando el logo
+     * está en BD; si no, cae al logo_url externo guardado (fallback).
+     */
+    public static String resolveLogoUrl(CompanyEntity entity) {
+        return (entity.getLogoData() != null)
+                ? ApiPaths.COMPANIES + "/" + entity.getId() + "/logo"
+                : entity.getLogoUrl();
     }
 }

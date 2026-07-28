@@ -48,20 +48,20 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     // employee.department, sin JOIN real: solo lee la FK) y rangos de fecha de inicio/fin.
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT c FROM Contract c WHERE c.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(c.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(c.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(c.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(c.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(c.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(c.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
            "AND (:estado IS NULL OR c.estado = :estado) " +
            "AND (:tipo IS NULL OR c.tipoContrato = :tipo) " +
            "AND (:jornada IS NULL OR c.jornadaLaboral = :jornada) " +
-           "AND (:moneda IS NULL OR :moneda = '' OR c.moneda = :moneda) " +
-           "AND (:employeeId IS NULL OR c.employee.id = :employeeId) " +
-           "AND (:departmentId IS NULL OR c.employee.department.id = :departmentId) " +
-           "AND (:fechaInicioDesde IS NULL OR c.fechaInicio >= :fechaInicioDesde) " +
-           "AND (:fechaInicioHasta IS NULL OR c.fechaInicio <= :fechaInicioHasta) " +
-           "AND (:fechaFinDesde IS NULL OR c.fechaFin >= :fechaFinDesde) " +
-           "AND (:fechaFinHasta IS NULL OR c.fechaFin <= :fechaFinHasta)")
+           "AND (CAST(:moneda AS String) IS NULL OR CAST(:moneda AS String) = '' OR c.moneda = :moneda) " +
+           "AND (CAST(:employeeId AS Long) IS NULL OR c.employee.id = :employeeId) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR c.employee.department.id = :departmentId) " +
+           "AND (CAST(:fechaInicioDesde AS LocalDate) IS NULL OR c.fechaInicio >= :fechaInicioDesde) " +
+           "AND (CAST(:fechaInicioHasta AS LocalDate) IS NULL OR c.fechaInicio <= :fechaInicioHasta) " +
+           "AND (CAST(:fechaFinDesde AS LocalDate) IS NULL OR c.fechaFin >= :fechaFinDesde) " +
+           "AND (CAST(:fechaFinHasta AS LocalDate) IS NULL OR c.fechaFin <= :fechaFinHasta)")
     Page<Contract> searchPaged(@Param("tenantId") Long tenantId,
                                @Param("search") String search,
                                @Param("estado") Contract.ContractStatus estado,

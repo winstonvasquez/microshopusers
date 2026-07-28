@@ -13,12 +13,15 @@ import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeReposito
 import com.microshop.rrhh.infrastructure.persistence.repository.PositionRepository;
 import com.microshop.users.shared.exception.ConflictException;
 import com.microshop.users.shared.exception.NotFoundException;
+import com.microshop.users.shared.util.ImagenBinariaUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Transactional
@@ -74,6 +77,51 @@ public class EmployeeCommandService {
         Employee updated = employeeRepository.save(employee);
         log.info("Empleado actualizado: {} - Tenant: {}", updated.getId(), tenantId);
         return employeeMapper.toDto(updated);
+    }
+
+    /**
+     * Almacena la foto binaria del empleado. Valida MIME, tamaño (máx 500 KB) y magic bytes.
+     * Calcula el MD5 del binario como ETag para caché HTTP y anula la URL externa previa.
+     * El empleado se busca acotado por tenant (defensa IDOR cross-tenant).
+     */
+    public EmployeeResponseDto uploadFoto(Long id, MultipartFile file) {
+        byte[] bytes = ImagenBinariaUtils.validarYExtraer(file);
+        Long tenantId = tenantContext.getCurrentTenantId();
+
+        Employee employee = employeeRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException(msg.get("employee.not.found")));
+
+        employee.setFotoData(bytes);
+        employee.setFotoMime(file.getContentType());
+        employee.setFotoEtag(DigestUtils.md5DigestAsHex(bytes));
+        employee.setFotoSize(bytes.length);
+        employee.setFotoUrl(null);
+
+        Employee saved = employeeRepository.save(employee);
+        log.info("Foto actualizada para empleado {} - Tenant: {} ({} bytes)", id, tenantId, bytes.length);
+        return employeeMapper.toDto(saved);
+    }
+
+    /**
+     * Elimina la foto binaria del empleado: borra el blob y TODOS sus metadatos
+     * (mime, etag, size) para que {@code serveFoto} responda 404 y la entidad quede
+     * consistente. El tenant se resuelve del JWT y el lookup va acotado por él.
+     */
+    public EmployeeResponseDto deleteFoto(Long id) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+
+        Employee employee = employeeRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException(msg.get("employee.not.found")));
+
+        employee.setFotoData(null);
+        employee.setFotoMime(null);
+        employee.setFotoEtag(null);
+        employee.setFotoSize(null);
+        employee.setFotoUrl(null);
+
+        Employee saved = employeeRepository.save(employee);
+        log.info("Foto eliminada para empleado {} - Tenant: {}", id, tenantId);
+        return employeeMapper.toDto(saved);
     }
 
     public void deactivateEmployee(Long id) {

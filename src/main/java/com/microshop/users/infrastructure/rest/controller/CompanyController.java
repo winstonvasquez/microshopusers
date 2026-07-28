@@ -28,6 +28,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -174,6 +175,40 @@ public class CompanyController {
     public ResponseEntity<Void> deleteCompany(@PathVariable Long id) {
         companyCommandService.deleteCompany(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // ── Logotipo binario almacenado en BD (V36) ─────────────────
+
+    /**
+     * GET /users/api/companies/{id}/logo — PÚBLICO (el logo se pinta en login, tienda
+     * y documentos, antes de tener sesión). Cacheado con ETag + Cache-Control.
+     */
+    @GetMapping("/{id}/logo")
+    @Operation(summary = "Servir logotipo binario de la empresa", description = "Público, cacheado con ETag")
+    public ResponseEntity<byte[]> getCompanyLogo(
+            @PathVariable @NonNull Long id,
+            @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+        return companyQueryService.serveLogo(id, ifNoneMatch);
+    }
+
+    /** POST /users/api/companies/{id}/logo — multipart protegido. Valida tipo, tamaño y magic bytes. */
+    @PostMapping(value = "/{companyId}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RequiresTenantAccess(allowSuperAdmin = true)
+    @Operation(summary = "Subir logotipo binario de la empresa", description = "JPEG/PNG/WebP, máx 500 KB")
+    public ResponseEntity<CompanyResponseDto> uploadCompanyLogo(
+            @PathVariable Long companyId,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(companyMapper.toDto(companyCommandService.uploadLogo(companyId, file)));
+    }
+
+    /** DELETE /users/api/companies/{id}/logo — borra el binario del logotipo y sus metadatos. */
+    @DeleteMapping("/{companyId}/logo")
+    @RequiresTenantAccess(allowSuperAdmin = true)
+    @Operation(summary = "Eliminar logotipo binario de la empresa",
+               description = "Borra el blob y sus metadatos (mime/etag/size); la empresa queda sin logo.")
+    public ResponseEntity<CompanyResponseDto> deleteCompanyLogo(@PathVariable Long companyId) {
+        log.info("DELETE /users/api/companies/{}/logo - Eliminando logotipo", companyId);
+        return ResponseEntity.ok(companyMapper.toDto(companyCommandService.deleteLogo(companyId)));
     }
 
     // ── Sub-recursos por empresa ────────────────────────────────

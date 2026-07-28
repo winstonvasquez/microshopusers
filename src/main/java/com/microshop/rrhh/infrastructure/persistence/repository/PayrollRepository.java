@@ -46,17 +46,17 @@ public interface PayrollRepository extends JpaRepository<Payroll, Long> {
      */
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT p FROM Payroll p WHERE p.tenantId = :tenantId " +
-            "AND (:periodo IS NULL OR :periodo = '' OR p.periodo = :periodo) " +
-            "AND (:search IS NULL OR :search = '' " +
-            "     OR LOWER(p.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "     OR LOWER(p.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "     OR LOWER(p.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "AND (CAST(:periodo AS String) IS NULL OR CAST(:periodo AS String) = '' OR p.periodo = :periodo) " +
+            "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+            "     OR LOWER(p.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+            "     OR LOWER(p.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+            "     OR LOWER(p.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
             "AND (:estado IS NULL OR p.estado = :estado) " +
-            "AND (:employeeId IS NULL OR p.employee.id = :employeeId) " +
-            "AND (:departmentId IS NULL OR p.employee.department.id = :departmentId) " +
-            "AND (:afpOnp IS NULL OR :afpOnp = '' OR p.afpOnp = :afpOnp) " +
-            "AND (:fechaPagoDesde IS NULL OR p.fechaPago >= :fechaPagoDesde) " +
-            "AND (:fechaPagoHasta IS NULL OR p.fechaPago <= :fechaPagoHasta)")
+            "AND (CAST(:employeeId AS Long) IS NULL OR p.employee.id = :employeeId) " +
+            "AND (CAST(:departmentId AS Long) IS NULL OR p.employee.department.id = :departmentId) " +
+            "AND (CAST(:afpOnp AS String) IS NULL OR CAST(:afpOnp AS String) = '' OR p.afpOnp = :afpOnp) " +
+            "AND (CAST(:fechaPagoDesde AS LocalDate) IS NULL OR p.fechaPago >= :fechaPagoDesde) " +
+            "AND (CAST(:fechaPagoHasta AS LocalDate) IS NULL OR p.fechaPago <= :fechaPagoHasta)")
     Page<Payroll> searchPaged(@Param("tenantId") Long tenantId,
             @Param("periodo") String periodo,
             @Param("search") String search,

@@ -21,14 +21,14 @@ public interface SegmentoRepository extends JpaRepository<SegmentoEntity, Long> 
     // 'activo' ya NO se hardcodea a true: si el filtro viene null se listan activos e inactivos.
     @Query("""
             SELECT s FROM SegmentoEntity s
-            WHERE (:activo IS NULL OR s.activo = :activo)
-              AND (:tipoCliente = '' OR s.tipoCliente = :tipoCliente)
-              AND (:search = ''
-                   OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(s.tipoCliente) LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(s.descripcion) LIKE LOWER(CONCAT('%', :search, '%')))
-              AND (:fechaDesde IS NULL OR s.fechaCreacion >= :fechaDesde)
-              AND (:fechaHasta IS NULL OR s.fechaCreacion <= :fechaHasta)
+            WHERE (CAST(:activo AS Boolean) IS NULL OR s.activo = :activo)
+              AND (CAST(:tipoCliente AS String) = '' OR s.tipoCliente = :tipoCliente)
+              AND (CAST(:search AS String) = ''
+                   OR LOWER(s.nombre) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))
+                   OR LOWER(s.tipoCliente) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))
+                   OR LOWER(s.descripcion) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')))
+              AND (CAST(:fechaDesde AS Instant) IS NULL OR s.fechaCreacion >= :fechaDesde)
+              AND (CAST(:fechaHasta AS Instant) IS NULL OR s.fechaCreacion <= :fechaHasta)
             """)
     Page<SegmentoEntity> findAllActiveWithSearch(
             @Param("search") String search,

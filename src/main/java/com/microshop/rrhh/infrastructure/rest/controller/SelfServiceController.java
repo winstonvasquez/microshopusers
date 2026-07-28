@@ -14,6 +14,7 @@ import com.microshop.rrhh.domain.model.Attendance;
 import com.microshop.rrhh.domain.model.Payroll;
 import com.microshop.rrhh.domain.model.VacationRequest;
 import com.microshop.rrhh.shared.constants.ApiPaths;
+import com.microshop.users.shared.exception.BusinessException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 
 import java.util.List;
 
@@ -73,9 +75,11 @@ public class SelfServiceController {
     }
 
     @PostMapping("/vacations")
-    @Operation(summary = "Crear solicitud de vacaciones")
+    @Operation(summary = "Crear solicitud de vacaciones propia. El employeeId del body se ignora: "
+            + "la solicitud se registra siempre a nombre del empleado resuelto del JWT.")
     public ResponseEntity<VacationResponseDto> requestVacation(@Valid @RequestBody VacationRequestDto request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(vacationCommandService.createVacationRequest(request));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(vacationCommandService.createOwnVacationRequest(request));
     }
 
     @GetMapping("/attendance")
@@ -90,7 +94,15 @@ public class SelfServiceController {
         if (fechaDesde != null || fechaHasta != null || tipoRegistro != null) {
             return ResponseEntity.ok(attendanceQueryService.getMyAttendanceFiltered(employeeId, tipoRegistro, fechaDesde, fechaHasta));
         }
-        YearMonth ym = YearMonth.parse(month);
+        if (month == null || month.isBlank()) {
+            throw new BusinessException("Debe indicar el parámetro 'month' con formato YYYY-MM");
+        }
+        YearMonth ym;
+        try {
+            ym = YearMonth.parse(month);
+        } catch (DateTimeParseException e) {
+            throw new BusinessException("El parámetro 'month' debe tener formato YYYY-MM");
+        }
         return ResponseEntity.ok(attendanceQueryService.getMonthlyReport(employeeId, ym));
     }
 

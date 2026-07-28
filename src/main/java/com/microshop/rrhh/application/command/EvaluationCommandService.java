@@ -153,7 +153,7 @@ public class EvaluationCommandService {
     public EvaluationCriteriaResponseDto updateCriteria(Long id, @Valid EvaluationCriteriaRequestDto request) {
         Long tenantId = tenantContext.getCurrentTenantId();
         EvaluationCriteria criteria = criteriaRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new NotFoundException("Criterio no encontrado"));
+                .orElseThrow(() -> new NotFoundException(msg.get("evaluation.criteria.not.found")));
 
         criteria.setNombre(request.nombre());
         criteria.setDescripcion(request.descripcion());
@@ -169,9 +169,18 @@ public class EvaluationCommandService {
     public void deactivateCriteria(Long id) {
         Long tenantId = tenantContext.getCurrentTenantId();
         EvaluationCriteria criteria = criteriaRepository.findByIdAndTenantId(id, tenantId)
-                .orElseThrow(() -> new NotFoundException("Criterio no encontrado"));
+                .orElseThrow(() -> new NotFoundException(msg.get("evaluation.criteria.not.found")));
         criteria.setActivo(false);
         criteriaRepository.save(criteria);
         log.info("Criterio desactivado: {} - Tenant: {}", id, tenantId);
+    }
+
+    public void activateCriteria(Long id) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        EvaluationCriteria criteria = criteriaRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException(msg.get("evaluation.criteria.not.found")));
+        criteria.setActivo(true);
+        criteriaRepository.save(criteria);
+        log.info("Criterio reactivado: {} - Tenant: {}", id, tenantId);
     }
 }

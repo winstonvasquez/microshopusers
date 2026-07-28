@@ -54,23 +54,23 @@ public interface PerformanceEvaluationRepository extends JpaRepository<Performan
     // exacto, además del rango de fecha de evaluación ya existente y el nuevo rango de próxima revisión.
     @EntityGraph(attributePaths = {"employee", "evaluador"})
     @Query("SELECT e FROM PerformanceEvaluation e WHERE e.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(e.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.evaluador.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.evaluador.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(e.periodo) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(e.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.evaluador.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.evaluador.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(e.periodo) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
            "AND (:estado IS NULL OR e.estado = :estado) " +
            "AND (:tipo IS NULL OR e.tipoEvaluacion = :tipo) " +
-           "AND (:employeeId IS NULL OR e.employee.id = :employeeId) " +
-           "AND (:evaluadorId IS NULL OR e.evaluador.id = :evaluadorId) " +
-           "AND (:departmentId IS NULL OR e.employee.department.id = :departmentId) " +
-           "AND (:periodo IS NULL OR :periodo = '' OR e.periodo = :periodo) " +
-           "AND (:desde IS NULL OR e.fechaEvaluacion >= :desde) " +
-           "AND (:hasta IS NULL OR e.fechaEvaluacion <= :hasta) " +
-           "AND (:proximaRevisionDesde IS NULL OR e.proximaRevision >= :proximaRevisionDesde) " +
-           "AND (:proximaRevisionHasta IS NULL OR e.proximaRevision <= :proximaRevisionHasta)")
+           "AND (CAST(:employeeId AS Long) IS NULL OR e.employee.id = :employeeId) " +
+           "AND (CAST(:evaluadorId AS Long) IS NULL OR e.evaluador.id = :evaluadorId) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR e.employee.department.id = :departmentId) " +
+           "AND (CAST(:periodo AS String) IS NULL OR CAST(:periodo AS String) = '' OR e.periodo = :periodo) " +
+           "AND (CAST(:desde AS LocalDate) IS NULL OR e.fechaEvaluacion >= :desde) " +
+           "AND (CAST(:hasta AS LocalDate) IS NULL OR e.fechaEvaluacion <= :hasta) " +
+           "AND (CAST(:proximaRevisionDesde AS LocalDate) IS NULL OR e.proximaRevision >= :proximaRevisionDesde) " +
+           "AND (CAST(:proximaRevisionHasta AS LocalDate) IS NULL OR e.proximaRevision <= :proximaRevisionHasta)")
     Page<PerformanceEvaluation> findFiltered(@Param("tenantId") Long tenantId,
                                               @Param("search") String search,
                                               @Param("estado") PerformanceEvaluation.EvaluationStatus estado,

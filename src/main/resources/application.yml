@@ -11,6 +11,15 @@ spring:
     locale: es
     locale-resolver: fixed
 
+  # Subida de imágenes binarias (logo de empresa, foto de empleado).
+  # El límite REAL de negocio es 500 KB y lo valida ImagenBinariaUtils con un mensaje
+  # en español; el tope del servlet se deja por encima para que un archivo un poco
+  # más grande caiga en esa validación y no en un error crudo de Tomcat.
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 4MB
+
   jpa:
     properties:
       hibernate:

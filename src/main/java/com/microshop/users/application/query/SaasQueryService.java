@@ -3,6 +3,7 @@ package com.microshop.users.application.query;
 import com.microshop.users.application.dto.SaasModuleDto;
 import com.microshop.users.application.dto.SaasPlanDto;
 import com.microshop.users.application.dto.CompanyProfileDto;
+import com.microshop.users.application.mapper.CompanyMapper;
 import com.microshop.users.infrastructure.persistence.entity.*;
 import com.microshop.users.infrastructure.persistence.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -106,6 +107,6 @@ public class SaasQueryService {
         List<SaasModuleDto> modules = getEnabledModules(companyId);
         return new CompanyProfileDto(company.getId(), company.getName(), company.getRuc(),
                 company.getLegalName(), company.getAddress(), company.getPhone(),
-                company.getEmail(), company.getLogoUrl(), planCode, status, modules);
+                company.getEmail(), CompanyMapper.resolveLogoUrl(company), planCode, status, modules);
     }
 }

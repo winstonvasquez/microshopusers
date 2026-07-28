@@ -7,10 +7,14 @@ import com.microshop.users.infrastructure.persistence.entity.SaasModuleEntity;
 import com.microshop.users.infrastructure.persistence.repository.CompanyRepository;
 import com.microshop.users.infrastructure.persistence.repository.CompanyModuleRepository;
 import com.microshop.users.infrastructure.persistence.repository.SaasModuleRepository;
+import com.microshop.users.shared.constants.ApiPaths;
+import com.microshop.users.shared.util.ImagenBinariaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.DigestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -43,10 +47,20 @@ public class CompanyCommandService {
         company.setAddress(companyDetails.getAddress());
         company.setPhone(companyDetails.getPhone());
         company.setEmail(companyDetails.getEmail());
-        company.setLogoUrl(companyDetails.getLogoUrl());
+        // logo_url es SOLO para logos externos. Si el formulario reenvía la URL calculada
+        // del binario (round-trip de /users/api/companies/{id}/logo), se conserva el valor
+        // actual en vez de persistir una ruta que apunta a este mismo endpoint.
+        if (!esUrlLogoBinario(companyDetails.getLogoUrl())) {
+            company.setLogoUrl(companyDetails.getLogoUrl());
+        }
         company.setDomain(companyDetails.getDomain());
 
         return companyRepository.save(company);
+    }
+
+    /** {@code true} si la URL es la ruta calculada del logo binario de este servicio. */
+    private static boolean esUrlLogoBinario(String url) {
+        return url != null && url.startsWith(ApiPaths.COMPANIES + "/") && url.endsWith("/logo");
     }
 
     public void deleteCompany(Long id) {
@@ -54,6 +68,45 @@ public class CompanyCommandService {
                 .orElseThrow(() -> new IllegalArgumentException(msg.get("company.not.found.with.id", id)));
         company.setActive(false);
         companyRepository.save(company);
+    }
+
+    /**
+     * Almacena el logotipo binario de la empresa. Valida MIME, tamaño (máx 500 KB) y magic bytes.
+     * Calcula el MD5 del binario como ETag para caché HTTP y anula la URL externa previa.
+     */
+    public CompanyEntity uploadLogo(Long companyId, MultipartFile file) {
+        byte[] bytes = ImagenBinariaUtils.validarYExtraer(file);
+
+        CompanyEntity company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("company.not.found.with.id", companyId)));
+
+        company.setLogoData(bytes);
+        company.setLogoMime(file.getContentType());
+        company.setLogoEtag(DigestUtils.md5DigestAsHex(bytes));
+        company.setLogoSize(bytes.length);
+        company.setLogoUrl(null);
+
+        log.info("Logo actualizado para empresa {} ({} bytes)", companyId, bytes.length);
+        return companyRepository.save(company);
+    }
+
+    /**
+     * Elimina el logotipo binario de la empresa: borra el blob y TODOS sus metadatos
+     * (mime, etag, size) para que {@code serveLogo} responda 404 y la entidad quede
+     * consistente. Mismo patrón que CategoriaCommandService.deleteImagen en ventas.
+     */
+    public CompanyEntity deleteLogo(Long companyId) {
+        CompanyEntity company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("company.not.found.with.id", companyId)));
+
+        company.setLogoData(null);
+        company.setLogoMime(null);
+        company.setLogoEtag(null);
+        company.setLogoSize(null);
+        company.setLogoUrl(null);
+
+        log.info("Logo eliminado para empresa {}", companyId);
+        return companyRepository.save(company);
     }
 
     public void toggleModule(Long companyId, Long moduleId, boolean enabled) {

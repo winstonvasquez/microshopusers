@@ -109,6 +109,17 @@ public class DepartmentCommandService {
         log.info("Departamento desactivado: {} - Tenant: {}", id, tenantId);
     }
 
+    public void activateDepartment(Long id) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+
+        Department department = departmentRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new NotFoundException(msg.get("department.not.found")));
+
+        department.setActivo(true);
+        departmentRepository.save(department);
+        log.info("Departamento reactivado: {} - Tenant: {}", id, tenantId);
+    }
+
     public void deleteDepartment(Long id) {
         Long tenantId = tenantContext.getCurrentTenantId();
 

@@ -90,17 +90,17 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
            "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
            "WHERE uc.company.id = :companyId " +
-           "AND (:search IS NULL OR :search = '' " +
-           "     OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.persona.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.persona.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.persona.numeroDocumento) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:rolId IS NULL OR u.rol.id = :rolId) " +
-           "AND (:activo IS NULL OR u.activo = :activo) " +
-           "AND (:tipoDocumento IS NULL OR :tipoDocumento = '' OR u.persona.tipoDocumento = :tipoDocumento) " +
-           "AND (:fechaDesde IS NULL OR u.fechaCreacion >= :fechaDesde) " +
-           "AND (:fechaHasta IS NULL OR u.fechaCreacion <= :fechaHasta)")
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+           "     OR LOWER(u.username) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.persona.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.persona.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.persona.numeroDocumento) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:rolId AS Long) IS NULL OR u.rol.id = :rolId) " +
+           "AND (CAST(:activo AS Boolean) IS NULL OR u.activo = :activo) " +
+           "AND (CAST(:tipoDocumento AS String) IS NULL OR CAST(:tipoDocumento AS String) = '' OR u.persona.tipoDocumento = :tipoDocumento) " +
+           "AND (CAST(:fechaDesde AS Instant) IS NULL OR u.fechaCreacion >= :fechaDesde) " +
+           "AND (CAST(:fechaHasta AS Instant) IS NULL OR u.fechaCreacion <= :fechaHasta)")
     Page<UsuarioEntity> findByCompanyIdFiltered(@Param("companyId") Long companyId,
             @Param("search") String search,
             @Param("rolId") Long rolId,
@@ -112,17 +112,17 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
     /** Ver {@link #findByCompanyIdFiltered} pero sin acotar por empresa (uso exclusivo SUPERADMIN). */
     @Query("SELECT u FROM UsuarioEntity u WHERE " +
-           "(:search IS NULL OR :search = '' " +
-           "     OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.persona.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.persona.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(u.persona.numeroDocumento) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:rolId IS NULL OR u.rol.id = :rolId) " +
-           "AND (:activo IS NULL OR u.activo = :activo) " +
-           "AND (:tipoDocumento IS NULL OR :tipoDocumento = '' OR u.persona.tipoDocumento = :tipoDocumento) " +
-           "AND (:fechaDesde IS NULL OR u.fechaCreacion >= :fechaDesde) " +
-           "AND (:fechaHasta IS NULL OR u.fechaCreacion <= :fechaHasta)")
+           "(CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+           "     OR LOWER(u.username) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.persona.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.persona.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(u.persona.numeroDocumento) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:rolId AS Long) IS NULL OR u.rol.id = :rolId) " +
+           "AND (CAST(:activo AS Boolean) IS NULL OR u.activo = :activo) " +
+           "AND (CAST(:tipoDocumento AS String) IS NULL OR CAST(:tipoDocumento AS String) = '' OR u.persona.tipoDocumento = :tipoDocumento) " +
+           "AND (CAST(:fechaDesde AS Instant) IS NULL OR u.fechaCreacion >= :fechaDesde) " +
+           "AND (CAST(:fechaHasta AS Instant) IS NULL OR u.fechaCreacion <= :fechaHasta)")
     Page<UsuarioEntity> findAllFiltered(@Param("search") String search,
             @Param("rolId") Long rolId,
             @Param("activo") Boolean activo,

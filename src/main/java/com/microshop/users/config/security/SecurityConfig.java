@@ -15,6 +15,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +34,27 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+        /**
+         * Jerarquía de roles: sin ella, cada {@code hasRole}/{@code hasAnyRole} es una
+         * comparación literal y un SUPERADMIN queda FUERA de todo lo restringido a ADMIN.
+         *
+         * <p>Síntoma concreto: la Bandeja de Soporte ({@code GET /users/api/admin/chat/conversaciones},
+         * anotado {@code ADMIN_OR_SOPORTE}) respondía 403 al superadministrador. El mismo fallo
+         * estaba en microshopcontabilidad y se resolvió igual.</p>
+         *
+         * <p>SUPERADMIN implica ADMIN, y ADMIN implica los roles funcionales. SOPORTE queda
+         * aparte a propósito: es staff de atención, no un escalón de la cadena de mando.</p>
+         */
+        @Bean
+        public RoleHierarchy roleHierarchy() {
+                return RoleHierarchyImpl.withDefaultRolePrefix()
+                                .role(AppConstants.Seguridad.SUPERADMIN).implies(AppConstants.Seguridad.ADMIN)
+                                .role(AppConstants.Seguridad.ADMIN).implies(
+                                                AppConstants.Seguridad.GERENTE,
+                                                AppConstants.Seguridad.SOPORTE)
+                                .build();
+        }
+
         private final JwtAuthenticationFilter jwtAuthFilter;
         private final UserDetailsService userDetailsService;
 
@@ -48,6 +71,14 @@ public class SecurityConfig {
                                                 // (tasas SUNAT: UIT, ONP, ESSALUD) y de empresas requieren ADMIN.
                                                 // El GET sigue público: lo consume la planilla s2s y el onboarding.
                                                 // Los matchers restrictivos van ANTES del permitAll (primer match gana).
+                                                // Binarios de imagen servidos desde BD (logo de empresa, foto de
+                                                // empleado): GET publico y cacheado con ETag — se pintan en login,
+                                                // tienda y fichas antes de tener sesion. Solo exponen los bytes,
+                                                // ningun dato de negocio. Van PRIMERO para no heredar la regla
+                                                // ADMIN/SUPERADMIN de /users/api/companies/** (primer match gana).
+                                                // Las subidas (POST) siguen protegidas por las reglas de abajo.
+                                                .requestMatchers(HttpMethod.GET, "/users/api/companies/*/logo").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/hr/api/employees/*/foto").permitAll()
                                                 .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
                                                 .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
                                                 .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)

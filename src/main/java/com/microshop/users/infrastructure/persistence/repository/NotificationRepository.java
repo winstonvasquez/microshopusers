@@ -23,13 +23,13 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
      * trae el orden, ver NotificationController).
      */
     @Query("SELECT n FROM NotificationEntity n WHERE n.usuario.id = :userId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(n.title) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(n.body) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:type IS NULL OR :type = '' OR n.type = :type) " +
-           "AND (:read IS NULL OR n.read = :read) " +
-           "AND (:createdAtDesde IS NULL OR n.createdAt >= :createdAtDesde) " +
-           "AND (:createdAtHasta IS NULL OR n.createdAt <= :createdAtHasta)")
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(n.title) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(n.body) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:type AS String) IS NULL OR CAST(:type AS String) = '' OR n.type = :type) " +
+           "AND (CAST(:read AS Boolean) IS NULL OR n.read = :read) " +
+           "AND (CAST(:createdAtDesde AS Instant) IS NULL OR n.createdAt >= :createdAtDesde) " +
+           "AND (CAST(:createdAtHasta AS Instant) IS NULL OR n.createdAt <= :createdAtHasta)")
     Page<NotificationEntity> searchPaged(@Param("userId") Long userId,
                                         @Param("search") String search,
                                         @Param("type") String type,

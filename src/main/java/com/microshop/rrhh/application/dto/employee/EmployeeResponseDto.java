@@ -45,6 +45,8 @@ public record EmployeeResponseDto(
     String sistemaPrevisional,
     String afpNombre,
     Long storeId,
+    /** Usuario vinculado; si es null el empleado no puede usar el portal de autoservicio. */
+    Long userId,
     Employee.EmployeeStatus estado,
     LocalDateTime createdAt,
     LocalDateTime updatedAt

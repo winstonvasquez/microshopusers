@@ -47,13 +47,13 @@ public interface ChatConversacionRepository extends JpaRepository<ChatConversaci
      * Strings, igual que EmployeeRepository/VacationRequestRepository de este mismo servicio.
      */
     @Query("SELECT c FROM ChatConversacionEntity c WHERE " +
-           "(:search IS NULL OR :search = '' OR LOWER(c.asunto) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:estado IS NULL OR :estado = '' OR c.estado = :estado) " +
-           "AND (:clienteId IS NULL OR c.clienteId = :clienteId) " +
-           "AND (:createdAtDesde IS NULL OR c.createdAt >= :createdAtDesde) " +
-           "AND (:createdAtHasta IS NULL OR c.createdAt <= :createdAtHasta) " +
-           "AND (:lastMessageAtDesde IS NULL OR c.lastMessageAt >= :lastMessageAtDesde) " +
-           "AND (:lastMessageAtHasta IS NULL OR c.lastMessageAt <= :lastMessageAtHasta)")
+           "(CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR LOWER(c.asunto) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:estado AS String) IS NULL OR CAST(:estado AS String) = '' OR c.estado = :estado) " +
+           "AND (CAST(:clienteId AS Long) IS NULL OR c.clienteId = :clienteId) " +
+           "AND (CAST(:createdAtDesde AS Instant) IS NULL OR c.createdAt >= :createdAtDesde) " +
+           "AND (CAST(:createdAtHasta AS Instant) IS NULL OR c.createdAt <= :createdAtHasta) " +
+           "AND (CAST(:lastMessageAtDesde AS Instant) IS NULL OR c.lastMessageAt >= :lastMessageAtDesde) " +
+           "AND (CAST(:lastMessageAtHasta AS Instant) IS NULL OR c.lastMessageAt <= :lastMessageAtHasta)")
     Page<ChatConversacionEntity> searchAdminPaged(@Param("search") String search,
                                                   @Param("estado") String estado,
                                                   @Param("clienteId") Long clienteId,

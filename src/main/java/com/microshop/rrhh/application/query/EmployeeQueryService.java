@@ -8,10 +8,14 @@ import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeReposito
 import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.users.shared.exception.NotFoundException;
 import com.microshop.users.shared.util.AppUtils;
+import com.microshop.users.shared.util.ImagenBinariaUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +47,30 @@ public class EmployeeQueryService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         messageSource.getMessage("employee.not.found", null, Locale.getDefault())));
         return employeeMapper.toDto(employee);
+    }
+
+    /**
+     * Sirve la foto binaria del empleado con headers ETag y Cache-Control.
+     * Endpoint PÚBLICO (se pinta en fichas y directorios sin sesión activa), por eso NO
+     * usa TenantContext: solo expone el binario, nunca datos personales del empleado.
+     * Retorna 304 si el ETag del cliente sigue vigente y 404 si no hay foto en BD.
+     */
+    public ResponseEntity<byte[]> serveFoto(Long id, String ifNoneMatch) {
+        Employee employee = employeeRepository.findById(id).orElse(null);
+        if (employee == null || employee.getFotoData() == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String etag = "\"" + employee.getFotoEtag() + "\"";
+        if (etag.equals(ifNoneMatch)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, ImagenBinariaUtils.resolveContentType(employee.getFotoMime()))
+                .header(HttpHeaders.ETAG, etag)
+                .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .body(employee.getFotoData());
     }
 
     public List<EmployeeResponseDto> getEmployeesByStatus(Employee.EmployeeStatus status) {
@@ -112,10 +140,10 @@ public class EmployeeQueryService {
         Long tenantId = tenantContext.getCurrentTenantId();
         Long userId = tenantContext.getCurrentUserId();
         if (userId == null) {
-            throw new NotFoundException("Usuario no autenticado");
+            throw new NotFoundException("El usuario no tiene un empleado asociado");
         }
         return employeeRepository.findByTenantIdAndUserId(tenantId, userId)
                 .map(e -> e.getId())
-                .orElseThrow(() -> new NotFoundException("No se encontró un empleado vinculado al usuario actual"));
+                .orElseThrow(() -> new NotFoundException("El usuario no tiene un empleado asociado"));
     }
 }

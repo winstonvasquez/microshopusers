@@ -24,12 +24,12 @@ public interface SaasPlanRepository extends JpaRepository<SaasPlanEntity, Long> 
     @Query("SELECT DISTINCT p FROM SaasPlanEntity p " +
            "LEFT JOIN SaasPlanModuleEntity pm ON pm.plan = p " +
            "LEFT JOIN pm.module m " +
-           "WHERE (:search IS NULL OR :search = '' " +
-           "       OR LOWER(p.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "       OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "       OR LOWER(p.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:isActive IS NULL OR p.isActive = :isActive) " +
-           "AND (:moduleCode IS NULL OR :moduleCode = '' OR m.code = :moduleCode) " +
+           "WHERE (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+           "       OR LOWER(p.code) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "       OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "       OR LOWER(p.description) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:isActive AS Boolean) IS NULL OR p.isActive = :isActive) " +
+           "AND (CAST(:moduleCode AS String) IS NULL OR CAST(:moduleCode AS String) = '' OR m.code = :moduleCode) " +
            "ORDER BY p.id")
     List<SaasPlanEntity> searchPlans(@Param("search") String search,
             @Param("isActive") Boolean isActive,

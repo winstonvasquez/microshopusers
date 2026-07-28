@@ -1,7 +1,9 @@
 package com.microshop.users.infrastructure.persistence.entity;
 
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -22,7 +24,7 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(callSuper = true)
+@ToString(callSuper = true, exclude = {"logoData"})
 public class CompanyEntity extends AuditEntity {
 
     @Id
@@ -60,8 +62,28 @@ public class CompanyEntity extends AuditEntity {
     private String email;
 
     @Column(name = "logo_url", length = 500)
-    @Comment("URL del logotipo")
+    @Comment("URL del logotipo (fallback externo cuando no hay binario en BD)")
     private String logoUrl;
+
+    // ── Logotipo almacenado en BD (V36) ─────────────────────────
+    // LAZY para no arrastrar el binario en cada SELECT del listado de empresas.
+
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "logo_data", columnDefinition = "bytea")
+    @Comment("Bytes del logotipo (alternativa a logo_url)")
+    private byte[] logoData;
+
+    @Column(name = "logo_mime", length = 50)
+    @Comment("MIME del logotipo: image/jpeg, image/png, image/webp")
+    private String logoMime;
+
+    @Column(name = "logo_etag", length = 64)
+    @Comment("MD5 hex del binario — usado como ETag para caché HTTP")
+    private String logoEtag;
+
+    @Column(name = "logo_size")
+    @Comment("Tamaño en bytes del logotipo binario")
+    private Integer logoSize;
 
     @Column(name = "domain", length = 100, unique = true)
     @Comment("Dominio personalizado del tenant")

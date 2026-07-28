@@ -155,6 +155,13 @@ public class PositionController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/activate")
+    @Operation(summary = "Reactivar puesto")
+    public ResponseEntity<Void> activatePosition(@PathVariable Long id) {
+        positionCommandService.activatePosition(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar puesto")
     public ResponseEntity<Void> deletePosition(@PathVariable Long id) {

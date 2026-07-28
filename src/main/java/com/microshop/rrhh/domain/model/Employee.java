@@ -10,6 +10,7 @@ import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.annotations.Comment;
 import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ import java.util.List;
 @Comment("Tabla de empleados")
 @Getter
 @Setter
-@ToString(exclude = {"department", "position", "supervisor", "subordinates", "contracts", "salaries", "leaveBalances", "emergencyContacts", "dependents", "documents", "goals"})
+@ToString(exclude = {"department", "position", "supervisor", "subordinates", "contracts", "salaries", "leaveBalances", "emergencyContacts", "dependents", "documents", "goals", "fotoData"})
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -180,8 +181,33 @@ public class Employee {
     private String departamentoGeo;
 
     @Column(name = "foto_url", length = 500)
-    @Comment("URL de la foto del empleado")
+    @Comment("URL de la foto del empleado (fallback externo cuando no hay binario en BD)")
     private String fotoUrl;
+
+    // ── Foto almacenada en BD (V8 rrhh) ─────────────────────────
+    // LAZY para no arrastrar el binario en cada SELECT del listado de empleados.
+    // @NotAudited: Envers no versiona binarios (evita replicar las columnas en employee_aud).
+
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "foto_data", columnDefinition = "bytea")
+    @Comment("Bytes de la foto del empleado (alternativa a foto_url)")
+    @NotAudited
+    private byte[] fotoData;
+
+    @Column(name = "foto_mime", length = 50)
+    @Comment("MIME de la foto: image/jpeg, image/png, image/webp")
+    @NotAudited
+    private String fotoMime;
+
+    @Column(name = "foto_etag", length = 64)
+    @Comment("MD5 hex del binario — usado como ETag para caché HTTP")
+    @NotAudited
+    private String fotoEtag;
+
+    @Column(name = "foto_size")
+    @Comment("Tamaño en bytes de la foto binaria")
+    @NotAudited
+    private Integer fotoSize;
 
     @Column(name = "linkedin_url", length = 500)
     @Comment("URL del perfil de LinkedIn")

@@ -35,6 +35,15 @@ import java.util.stream.Collectors;
  * Controlador REST para el chat de soporte cliente ↔ MicroShop.
  * Implementa HTTP polling (GET mensajes?since=ISO_TIMESTAMP cada 5s en el frontend).
  */
+/*
+ * Rutas: este controlador declaraba sus paths como `/api/chat/...` y `/api/admin/chat/...`,
+ * sin el prefijo `/users` que usa TODO el resto del servicio (`ApiPaths.BASE = "/users/api"`).
+ * Resultado: los tres callers del frontend (`chat.service.ts` y `chat-soporte.component.ts`,
+ * que construyen la URL con `environment.apiUrls.users` = `/users`) daban 404, o sea que ni el
+ * widget de chat del cliente ni la Bandeja de Soporte funcionaron nunca. La `SecurityConfig`
+ * ya declaraba los matchers con el prefijo correcto (`/users/api/chat/**`), lo que confirma
+ * que el desalineado era el controlador. Se corrigió aquí para no tocar tres callers.
+ */
 @RestController
 @RequiredArgsConstructor
 @Slf4j
@@ -50,9 +59,9 @@ public class ChatController {
 
     /**
      * Inicia una nueva conversación de soporte para el cliente autenticado.
-     * POST /api/chat/conversaciones
+     * POST /users/api/chat/conversaciones
      */
-    @PostMapping("/api/chat/conversaciones")
+    @PostMapping("/users/api/chat/conversaciones")
     @Operation(summary = "Iniciar conversación de soporte")
     public ResponseEntity<ChatConversacionResponseDto> crearConversacion(
             @AuthenticationPrincipal UserDetails principal,
@@ -65,9 +74,9 @@ public class ChatController {
 
     /**
      * Obtiene la conversación activa (ABIERTA) del cliente autenticado.
-     * GET /api/chat/conversaciones/activa
+     * GET /users/api/chat/conversaciones/activa
      */
-    @GetMapping("/api/chat/conversaciones/activa")
+    @GetMapping("/users/api/chat/conversaciones/activa")
     @Operation(summary = "Obtener conversación activa del cliente")
     public ResponseEntity<ChatConversacionResponseDto> getConversacionActiva(
             @AuthenticationPrincipal UserDetails principal) {
@@ -79,9 +88,9 @@ public class ChatController {
 
     /**
      * Envía un mensaje en una conversación.
-     * POST /api/chat/conversaciones/{id}/mensajes
+     * POST /users/api/chat/conversaciones/{id}/mensajes
      */
-    @PostMapping("/api/chat/conversaciones/{id}/mensajes")
+    @PostMapping("/users/api/chat/conversaciones/{id}/mensajes")
     @Operation(summary = "Enviar mensaje en la conversación")
     public ResponseEntity<ChatMensajeResponseDto> enviarMensaje(
             @PathVariable Long id,
@@ -103,9 +112,9 @@ public class ChatController {
 
     /**
      * Obtiene mensajes de una conversación, opcionalmente desde una fecha para polling.
-     * GET /api/chat/conversaciones/{id}/mensajes?since=ISO_TIMESTAMP
+     * GET /users/api/chat/conversaciones/{id}/mensajes?since=ISO_TIMESTAMP
      */
-    @GetMapping("/api/chat/conversaciones/{id}/mensajes")
+    @GetMapping("/users/api/chat/conversaciones/{id}/mensajes")
     @Operation(summary = "Obtener mensajes (polling) — since es ISO-8601 opcional")
     public ResponseEntity<List<ChatMensajeResponseDto>> getMensajes(
             @PathVariable Long id,
@@ -116,9 +125,9 @@ public class ChatController {
 
     /**
      * Marca como leídos los mensajes del SOPORTE en una conversación (el cliente los leyó).
-     * PUT /api/chat/conversaciones/{id}/leer
+     * PUT /users/api/chat/conversaciones/{id}/leer
      */
-    @PutMapping("/api/chat/conversaciones/{id}/leer")
+    @PutMapping("/users/api/chat/conversaciones/{id}/leer")
     @Operation(summary = "Marcar mensajes de soporte como leídos")
     public ResponseEntity<Void> marcarLeido(@PathVariable Long id) {
         commandService.marcarLeido(id);
@@ -127,9 +136,9 @@ public class ChatController {
 
     /**
      * Devuelve el contador de mensajes no leídos del SOPORTE para el badge del cliente.
-     * GET /api/chat/conversaciones/{id}/unread-count
+     * GET /users/api/chat/conversaciones/{id}/unread-count
      */
-    @GetMapping("/api/chat/conversaciones/{id}/unread-count")
+    @GetMapping("/users/api/chat/conversaciones/{id}/unread-count")
     @Operation(summary = "Contador de mensajes no leídos del soporte")
     public ResponseEntity<Map<String, Long>> unreadCount(@PathVariable Long id) {
         return ResponseEntity.ok(Map.of("count", queryService.unreadCount(id)));
@@ -142,9 +151,9 @@ public class ChatController {
     /**
      * Lista conversaciones para el panel de soporte, paginado y con filtros avanzados
      * (2026-07-27: antes devolvía SIEMPRE solo las ABIERTA, sin paginar ni filtrar).
-     * GET /api/admin/chat/conversaciones
+     * GET /users/api/admin/chat/conversaciones
      */
-    @GetMapping("/api/admin/chat/conversaciones")
+    @GetMapping("/users/api/admin/chat/conversaciones")
     @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
     @Operation(summary = "Listar conversaciones (admin) con búsqueda por asunto, estado, cliente y rango de fechas")
     public ResponseEntity<Page<ChatConversacionResponseDto>> listarConversacionesAdmin(
@@ -177,9 +186,9 @@ public class ChatController {
 
     /**
      * El equipo de soporte envía un mensaje en nombre de "SOPORTE".
-     * POST /api/admin/chat/conversaciones/{id}/mensajes
+     * POST /users/api/admin/chat/conversaciones/{id}/mensajes
      */
-    @PostMapping("/api/admin/chat/conversaciones/{id}/mensajes")
+    @PostMapping("/users/api/admin/chat/conversaciones/{id}/mensajes")
     @PreAuthorize(AppConstants.Seguridad.ADMIN_OR_SOPORTE)
     @Operation(summary = "Soporte responde en la conversación")
     public ResponseEntity<ChatMensajeResponseDto> responderComoSoporte(

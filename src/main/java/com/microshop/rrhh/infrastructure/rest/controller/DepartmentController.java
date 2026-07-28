@@ -188,6 +188,13 @@ public class DepartmentController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/activate")
+    @Operation(summary = "Reactivar departamento")
+    public ResponseEntity<Void> activateDepartment(@PathVariable Long id) {
+        departmentCommandService.activateDepartment(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar departamento")
     public ResponseEntity<Void> deleteDepartment(@PathVariable Long id) {

@@ -244,4 +244,11 @@ public class EvaluationController {
         evaluationCommandService.deactivateCriteria(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/criteria/{id}/activate")
+    @Operation(summary = "Reactivar criterio de evaluación")
+    public ResponseEntity<Void> activateCriteria(@PathVariable Long id) {
+        evaluationCommandService.activateCriteria(id);
+        return ResponseEntity.noContent().build();
+    }
 }

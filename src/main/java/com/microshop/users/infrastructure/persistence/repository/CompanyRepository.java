@@ -37,22 +37,27 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, Long> {
      * "con dominio propio"). El plan/suscripción y el rubro se resuelven con EXISTS (no JOIN) para no
      * duplicar filas de la proyección constructor-expression ni romper el countQuery.
      */
+    // Los parámetros van con CAST explícito: en `:param IS NULL` Hibernate emite un
+    // bind sin contexto de tipo y PostgreSQL no puede inferirlo (error "no se pudo
+    // determinar el tipo del parámetro $N" / "no existe la función lower(bytea)").
     String FILTROS_AVANZADOS =
-            "(:search IS NULL OR :search = '' OR LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "     OR c.ruc LIKE CONCAT('%', :search, '%') " +
-            "     OR LOWER(c.legalName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "     OR LOWER(c.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "     OR LOWER(c.domain) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-            "AND (:active IS NULL OR c.isActive = :active) " +
-            "AND (:fechaDesde IS NULL OR c.fechaCreacion >= :fechaDesde) " +
-            "AND (:fechaHasta IS NULL OR c.fechaCreacion <= :fechaHasta) " +
-            "AND (:planCode IS NULL OR EXISTS (SELECT 1 FROM SaasSubscriptionEntity sub " +
+            "(CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+            "     OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+            "     OR c.ruc LIKE CONCAT('%', CAST(:search AS String), '%') " +
+            "     OR LOWER(c.legalName) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+            "     OR LOWER(c.email) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+            "     OR LOWER(c.domain) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+            "AND (CAST(:active AS Boolean) IS NULL OR c.isActive = :active) " +
+            "AND (CAST(:fechaDesde AS Instant) IS NULL OR c.fechaCreacion >= :fechaDesde) " +
+            "AND (CAST(:fechaHasta AS Instant) IS NULL OR c.fechaCreacion <= :fechaHasta) " +
+            "AND (CAST(:planCode AS String) IS NULL OR EXISTS (SELECT 1 FROM SaasSubscriptionEntity sub " +
             "     WHERE sub.company = c AND sub.plan.code = :planCode)) " +
-            "AND (:subscriptionStatus IS NULL OR EXISTS (SELECT 1 FROM SaasSubscriptionEntity sub2 " +
+            "AND (CAST(:subscriptionStatus AS String) IS NULL OR EXISTS (SELECT 1 FROM SaasSubscriptionEntity sub2 " +
             "     WHERE sub2.company = c AND sub2.status = :subscriptionStatus)) " +
-            "AND (:rubroId IS NULL OR EXISTS (SELECT 1 FROM CompanyRubroEntity cr " +
+            "AND (CAST(:rubroId AS Long) IS NULL OR EXISTS (SELECT 1 FROM CompanyRubroEntity cr " +
             "     WHERE cr.company = c AND cr.rubro.id = :rubroId)) " +
-            "AND (:conDominio IS NULL OR (:conDominio = TRUE AND c.domain IS NOT NULL AND c.domain <> '') " +
+            "AND (CAST(:conDominio AS Boolean) IS NULL " +
+            "     OR (:conDominio = TRUE AND c.domain IS NOT NULL AND c.domain <> '') " +
             "     OR (:conDominio = FALSE AND (c.domain IS NULL OR c.domain = '')))";
 
     @Query(value = "SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c " +
@@ -71,10 +76,10 @@ public interface CompanyRepository extends JpaRepository<CompanyEntity, Long> {
      */
     @Query(value = "SELECT new com.microshop.users.application.dto.CompanyResponseDto(c.id, c.name, c.ruc, c.isActive) FROM CompanyEntity c " +
             "WHERE " + FILTROS_AVANZADOS + " " +
-            "AND (:companyId IS NULL OR c.id = :companyId)",
+            "AND (CAST(:companyId AS Long) IS NULL OR c.id = :companyId)",
            countQuery = "SELECT COUNT(c) FROM CompanyEntity c " +
             "WHERE " + FILTROS_AVANZADOS + " " +
-            "AND (:companyId IS NULL OR c.id = :companyId)")
+            "AND (CAST(:companyId AS Long) IS NULL OR c.id = :companyId)")
     Page<CompanyResponseDto> searchPagedScoped(@Param("search") String search, @Param("active") Boolean active,
             @Param("fechaDesde") Instant fechaDesde, @Param("fechaHasta") Instant fechaHasta,
             @Param("planCode") String planCode, @Param("subscriptionStatus") String subscriptionStatus,

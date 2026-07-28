@@ -102,5 +102,12 @@ public record EmployeeRequestDto(
 
     Long storeId,
 
+    /**
+     * Usuario del módulo Usuarios vinculado a este empleado. Habilita el portal de
+     * autoservicio (/hr/api/self-service): sin este vínculo el empleado no puede
+     * consultar sus propios datos. Opcional.
+     */
+    Long userId,
+
     Employee.EmployeeStatus estado
 ) {}

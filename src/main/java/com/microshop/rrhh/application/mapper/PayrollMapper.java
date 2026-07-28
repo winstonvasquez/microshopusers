@@ -23,8 +23,28 @@ public class PayrollMapper {
                 .sueldoBase(dto.sueldoBase())
                 .bonos(AppUtils.zeroIfNull(dto.bonos()))
                 .descuentos(AppUtils.zeroIfNull(dto.descuentos()))
+                .asignacionFamiliar(AppUtils.zeroIfNull(dto.asignacionFamiliar()))
+                .montoHorasExtras(AppUtils.zeroIfNull(dto.montoHorasExtras()))
+                .diasTrabajados(dto.diasTrabajados())
                 .estado(Payroll.PayrollStatus.GENERADO)
                 .build();
+    }
+
+    /**
+     * Aplica al entity los campos manuales editables de una corrección (PUT /payroll/{id}).
+     * NO toca employee/tenantId/estado/afpOnp/montoAfpOnp/essalud/rentaQuinta — esos los
+     * resuelve PayrollCommandService (requieren lookup de tenant y el mismo cálculo
+     * previsional que createPayroll/generatePayrollForPeriod, fuente única en
+     * calcularAportesPrevisionales).
+     */
+    public void updateEntity(Payroll entity, PayrollRequestDto dto) {
+        entity.setPeriodo(dto.periodo());
+        entity.setSueldoBase(dto.sueldoBase());
+        entity.setBonos(AppUtils.zeroIfNull(dto.bonos()));
+        entity.setDescuentos(AppUtils.zeroIfNull(dto.descuentos()));
+        entity.setAsignacionFamiliar(AppUtils.zeroIfNull(dto.asignacionFamiliar()));
+        entity.setMontoHorasExtras(AppUtils.zeroIfNull(dto.montoHorasExtras()));
+        entity.setDiasTrabajados(dto.diasTrabajados());
     }
 
     public PayrollResponseDto toDto(Payroll entity) {

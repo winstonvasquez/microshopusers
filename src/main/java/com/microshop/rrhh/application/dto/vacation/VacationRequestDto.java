@@ -1,5 +1,6 @@
 package com.microshop.rrhh.application.dto.vacation;
 
+import com.microshop.rrhh.domain.model.VacationRequest;
 import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
@@ -20,5 +21,8 @@ public record VacationRequestDto(
     Integer dias,
 
     @Size(max = 500, message = "{vacation.motivo.size}")
-    String motivo
+    String motivo,
+
+    // Opcional: si el cliente no lo envía, el mapper aplica el default ANUAL del dominio.
+    VacationRequest.VacationType tipoVacacion
 ) {}

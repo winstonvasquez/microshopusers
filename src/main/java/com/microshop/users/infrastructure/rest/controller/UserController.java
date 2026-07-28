@@ -9,6 +9,7 @@ import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.UserExportRowDto;
 import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
+import com.microshop.users.application.dto.ValidationGroups;
 import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.shared.constants.ApiPaths;
 import com.microshop.users.shared.util.SpreadsheetExporter;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +35,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -162,14 +165,19 @@ public class UserController {
 
     @PostMapping
     @Operation(summary = "Crear nuevo usuario")
-    public ResponseEntity<UserResponseDto> createUser(@RequestBody @Valid UserRequestDto userDto) {
+    // Default + OnCreate: en el alta la contraseña SÍ es obligatoria (en el PUT no, ver updateUser).
+    public ResponseEntity<UserResponseDto> createUser(
+            @RequestBody @Validated({ Default.class, ValidationGroups.OnCreate.class }) UserRequestDto userDto) {
         log.info("POST /api/users - Creando nuevo usuario: {}", userDto.username());
         UserResponseDto created = userCommandService.createUser(userDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar usuario existente")
+    @Operation(summary = "Actualizar usuario existente",
+               description = "La contraseña es OPCIONAL: en blanco = mantener la actual. "
+                       + "`activo` en null = no cambiar el estado.")
+    // Solo grupo Default: la contraseña obligatoria (grupo OnCreate) no aplica al editar.
     public ResponseEntity<UserResponseDto> updateUser(
             @PathVariable @NonNull Long id,
             @RequestBody @Valid UserRequestDto userDto) {

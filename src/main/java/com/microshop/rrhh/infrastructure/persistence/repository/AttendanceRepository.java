@@ -56,17 +56,17 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
      */
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' " +
-           "     OR LOWER(a.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(a.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(a.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(a.observaciones) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:employeeId IS NULL OR a.employee.id = :employeeId) " +
-           "AND (:departmentId IS NULL OR a.employee.department.id = :departmentId) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+           "     OR LOWER(a.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(a.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(a.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(a.observaciones) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:employeeId AS Long) IS NULL OR a.employee.id = :employeeId) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR a.employee.department.id = :departmentId) " +
            "AND (:tipoRegistro IS NULL OR a.tipoRegistro = :tipoRegistro) " +
-           "AND (:aprobadoPorId IS NULL OR a.aprobadoPor.id = :aprobadoPorId) " +
-           "AND (:fechaDesde IS NULL OR a.fecha >= :fechaDesde) " +
-           "AND (:fechaHasta IS NULL OR a.fecha <= :fechaHasta)")
+           "AND (CAST(:aprobadoPorId AS Long) IS NULL OR a.aprobadoPor.id = :aprobadoPorId) " +
+           "AND (CAST(:fechaDesde AS LocalDate) IS NULL OR a.fecha >= :fechaDesde) " +
+           "AND (CAST(:fechaHasta AS LocalDate) IS NULL OR a.fecha <= :fechaHasta)")
     Page<Attendance> searchPaged(@Param("tenantId") Long tenantId,
             @Param("search") String search,
             @Param("employeeId") Long employeeId,
@@ -85,8 +85,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId AND a.employee.id = :employeeId " +
            "AND (:tipoRegistro IS NULL OR a.tipoRegistro = :tipoRegistro) " +
-           "AND (:fechaDesde IS NULL OR a.fecha >= :fechaDesde) " +
-           "AND (:fechaHasta IS NULL OR a.fecha <= :fechaHasta) " +
+           "AND (CAST(:fechaDesde AS LocalDate) IS NULL OR a.fecha >= :fechaDesde) " +
+           "AND (CAST(:fechaHasta AS LocalDate) IS NULL OR a.fecha <= :fechaHasta) " +
            "ORDER BY a.fecha DESC")
     List<Attendance> findByTenantIdAndEmployeeIdFiltered(@Param("tenantId") Long tenantId,
             @Param("employeeId") Long employeeId,
@@ -97,17 +97,17 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     /** Ver {@link #searchPaged} — misma query sin paginar, para exportación server-side. */
     @EntityGraph(attributePaths = "employee")
     @Query("SELECT a FROM Attendance a WHERE a.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' " +
-           "     OR LOWER(a.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(a.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(a.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(a.observaciones) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:employeeId IS NULL OR a.employee.id = :employeeId) " +
-           "AND (:departmentId IS NULL OR a.employee.department.id = :departmentId) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
+           "     OR LOWER(a.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(a.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(a.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
+           "     OR LOWER(a.observaciones) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
+           "AND (CAST(:employeeId AS Long) IS NULL OR a.employee.id = :employeeId) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR a.employee.department.id = :departmentId) " +
            "AND (:tipoRegistro IS NULL OR a.tipoRegistro = :tipoRegistro) " +
-           "AND (:aprobadoPorId IS NULL OR a.aprobadoPor.id = :aprobadoPorId) " +
-           "AND (:fechaDesde IS NULL OR a.fecha >= :fechaDesde) " +
-           "AND (:fechaHasta IS NULL OR a.fecha <= :fechaHasta) " +
+           "AND (CAST(:aprobadoPorId AS Long) IS NULL OR a.aprobadoPor.id = :aprobadoPorId) " +
+           "AND (CAST(:fechaDesde AS LocalDate) IS NULL OR a.fecha >= :fechaDesde) " +
+           "AND (CAST(:fechaHasta AS LocalDate) IS NULL OR a.fecha <= :fechaHasta) " +
            "ORDER BY a.fecha DESC")
     List<Attendance> searchAllForExport(@Param("tenantId") Long tenantId,
             @Param("search") String search,

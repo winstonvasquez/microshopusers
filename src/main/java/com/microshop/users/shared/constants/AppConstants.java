@@ -54,6 +54,10 @@ public final class AppConstants {
         // Headers HTTP — ver WebClientConfig.java (s2s) y TenantAccessAspect.java (tenant).
         public static final String X_INTERNAL_TOKEN = "X-Internal-Token";
         public static final String X_TENANT_ID = "X-Tenant-ID";
+
+        // Longitud mínima de contraseña — misma regla que @Size del UserRequestDto,
+        // revalidada en UserCommandService.updateUser (donde la contraseña es opcional).
+        public static final int PASSWORD_MIN_LENGTH = 6;
     }
 
     /** Defaults de paginación para endpoints con @RequestParam page/size. */

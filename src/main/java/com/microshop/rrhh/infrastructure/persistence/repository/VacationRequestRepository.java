@@ -33,21 +33,21 @@ public interface VacationRequestRepository extends JpaRepository<VacationRequest
     // sobre employee/aprobadoPor para evitar N+1 (el mapper toca ambas relaciones).
     @EntityGraph(attributePaths = {"employee", "aprobadoPor"})
     @Query("SELECT v FROM VacationRequest v WHERE v.tenantId = :tenantId " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "  LOWER(v.employee.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(v.employee.apellidos) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "  LOWER(v.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' OR " +
+           "  LOWER(v.employee.nombres) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(v.employee.apellidos) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) OR " +
+           "  LOWER(v.employee.codigoEmpleado) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%'))) " +
            "AND (:estado IS NULL OR v.estado = :estado) " +
            "AND (:tipoVacacion IS NULL OR v.tipoVacacion = :tipoVacacion) " +
-           "AND (:employeeId IS NULL OR v.employee.id = :employeeId) " +
-           "AND (:departmentId IS NULL OR v.employee.department.id = :departmentId) " +
-           "AND (:aprobadoPorId IS NULL OR v.aprobadoPor.id = :aprobadoPorId) " +
-           "AND (:fechaInicioDesde IS NULL OR v.fechaInicio >= :fechaInicioDesde) " +
-           "AND (:fechaInicioHasta IS NULL OR v.fechaInicio <= :fechaInicioHasta) " +
-           "AND (:fechaFinDesde IS NULL OR v.fechaFin >= :fechaFinDesde) " +
-           "AND (:fechaFinHasta IS NULL OR v.fechaFin <= :fechaFinHasta) " +
-           "AND (:fechaAprobacionDesde IS NULL OR v.fechaAprobacion >= :fechaAprobacionDesde) " +
-           "AND (:fechaAprobacionHasta IS NULL OR v.fechaAprobacion <= :fechaAprobacionHasta)")
+           "AND (CAST(:employeeId AS Long) IS NULL OR v.employee.id = :employeeId) " +
+           "AND (CAST(:departmentId AS Long) IS NULL OR v.employee.department.id = :departmentId) " +
+           "AND (CAST(:aprobadoPorId AS Long) IS NULL OR v.aprobadoPor.id = :aprobadoPorId) " +
+           "AND (CAST(:fechaInicioDesde AS LocalDate) IS NULL OR v.fechaInicio >= :fechaInicioDesde) " +
+           "AND (CAST(:fechaInicioHasta AS LocalDate) IS NULL OR v.fechaInicio <= :fechaInicioHasta) " +
+           "AND (CAST(:fechaFinDesde AS LocalDate) IS NULL OR v.fechaFin >= :fechaFinDesde) " +
+           "AND (CAST(:fechaFinHasta AS LocalDate) IS NULL OR v.fechaFin <= :fechaFinHasta) " +
+           "AND (CAST(:fechaAprobacionDesde AS LocalDate) IS NULL OR v.fechaAprobacion >= :fechaAprobacionDesde) " +
+           "AND (CAST(:fechaAprobacionHasta AS LocalDate) IS NULL OR v.fechaAprobacion <= :fechaAprobacionHasta)")
     Page<VacationRequest> searchPaged(@Param("tenantId") Long tenantId,
                                       @Param("search") String search,
                                       @Param("estado") VacationRequest.VacationStatus estado,

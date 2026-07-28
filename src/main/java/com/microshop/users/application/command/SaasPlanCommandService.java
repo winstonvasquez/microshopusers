@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -97,8 +98,13 @@ public class SaasPlanCommandService {
         planModuleRepository.deleteByPlanId(planId);
         if (moduleCodes == null || moduleCodes.isEmpty()) return;
 
+        // El request puede repetir un código (la UI arma la lista desde varios checkboxes) y
+        // `uk_plan_module` es (plan_id, module_id): sin deduplicar, el segundo INSERT da 500.
+        // LinkedHashSet para no alterar el orden en que llegaron.
+        var codigos = new LinkedHashSet<>(moduleCodes);
+
         var plan = planRepository.getReferenceById(planId);
-        for (String code : moduleCodes) {
+        for (String code : codigos) {
             SaasModuleEntity module = moduleRepository.findByCode(code)
                     .orElseThrow(() -> new BusinessException("Módulo desconocido: " + code));
             planModuleRepository.save(SaasPlanModuleEntity.builder()
