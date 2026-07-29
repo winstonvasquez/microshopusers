@@ -43,6 +43,24 @@ public class TenantAccessAspect {
             throw new AccessDeniedException("Sin autenticación — no se puede validar tenant");
         }
 
+        // Bypass para llamadas s2s autenticadas vía X-Internal-Token. users tenía el
+        // InternalServiceAuthenticationFilter pero NO este bypass, que es exactamente el bug que
+        // fue M23 en ventas: su filtro concede ROLE_INTERNAL_SERVICE sin JWT, así que cualquier
+        // endpoint anotado moriría con "no se pudo resolver companyId" para una llamada interna
+        // legítima. Hoy no hay ningún llamador s2s que toque un endpoint anotado de este servicio,
+        // o sea que es una mina latente y no una fuga activa — se cierra ahora porque en ventas
+        // pasó de latente a real sin que nadie lo notara, degradado en silencio por un catch.
+        //
+        // Igual que en ventas y logística, además del rol se exige que el principal sea EXACTAMENTE
+        // el literal del filtro: así, si algún día existiera un rol de BD llamado
+        // "internal_service" asignado a un usuario real, su JWT no heredaría la confianza s2s.
+        if (hasRole(auth, AppConstants.Seguridad.ROLE_INTERNAL_SERVICE)
+                && InternalServiceAuthenticationFilter.PRINCIPAL.equals(String.valueOf(auth.getPrincipal()))) {
+            log.debug("Bypass tenant check para llamada s2s en {}.{}",
+                    method.getDeclaringClass().getSimpleName(), method.getName());
+            return;
+        }
+
         if (annotation.allowSuperAdmin() && hasRole(auth, AppConstants.Seguridad.ROLE_SUPERADMIN)) {
             log.debug("Bypass tenant check para SUPERADMIN en {}.{}",
                     method.getDeclaringClass().getSimpleName(), method.getName());

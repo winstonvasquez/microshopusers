@@ -17,6 +17,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -61,6 +62,19 @@ public class JwtService {
     private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
         return Jwts.builder()
                 .claims(extraClaims)
+                // jti único por token. Sin esto, dos logins del MISMO usuario dentro del mismo
+                // segundo producían un token BYTE-IDÉNTICO: los claims son los mismos y `iat`/`exp`
+                // se serializan en JWT como NumericDate, o sea con precisión de SEGUNDO, no de
+                // milisegundo. El segundo token chocaba con el UNIQUE de `sesion.token`
+                // (ukp7og8r8eiob14l5r16vixsqew) al guardar la sesión en
+                // AuthCommandService.createSession:169, y el login respondía 500.
+                //
+                // Es un fallo de cara al usuario y con pinta de aleatorio: lo dispara un doble clic
+                // en «Entrar», un reintento tras una respuesta lenta o cualquier cliente automático.
+                // Lo destapó SuspensionDeTenantTest (login → suspender → reactivar → login), que
+                // hace dos logins del mismo usuario en pocos segundos; pasaba o fallaba según lo
+                // que tardara la corrida, así que llevaba tiempo siendo intermitente.
+                .id(UUID.randomUUID().toString())
                 .subject(userDetails.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
