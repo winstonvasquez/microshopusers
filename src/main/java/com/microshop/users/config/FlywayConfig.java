@@ -42,6 +42,34 @@ public class FlywayConfig {
     @Value("${spring.flyway.baseline-version-usuarios:0}")
     private String baselineUsuarios;
 
+    /**
+     * Validacion del historial contra las migraciones del repo (M36).
+     *
+     * <p>Estaba en false. Junto con el {@code repair()} incondicional formaba una pareja que
+     * garantizaba que Flyway no avisara nunca de nada: la validacion desactivada no compara, y el
+     * repair reescribe el historial para que coincida con el repo en lugar de detectar la deriva.
+     * Ese silencio dejo pasar dos defectos reales en logistica: la tabla {@code processed_movements}
+     * que ninguna migracion habia creado (M35) y siete tablas con {@code created_at NOT NULL} sin
+     * mapear (M49). Se comprobo en runtime que con la validacion activada este entorno arranca.</p>
+     *
+     * <p>Se puede apagar por configuracion si un entorno concreto tiene el historial sucio y hay que
+     * arrancar antes de limpiarlo.</p>
+     */
+    @Value("${spring.flyway.validate-on-migrate:true}")
+    private boolean validateOnMigrate;
+
+    /**
+     * Si se ejecuta {@code repair()} antes de migrar (M36).
+     *
+     * <p>Corria siempre y sin condicion, y eso no es una red de seguridad sino un borrador de
+     * evidencia: {@code repair} alinea descripcion y checksum de las filas del historial con lo que
+     * hay en el repo, asi que una migracion aplicada y luego editada pasa desapercibida. Reparar es
+     * una operacion deliberada, no algo que ocurra en cada arranque: se activa a mano con
+     * {@code --spring.flyway.repair-on-migrate=true}.</p>
+     */
+    @Value("${spring.flyway.repair-on-migrate:false}")
+    private boolean repairOnMigrate;
+
     @PostConstruct
     public void migrateAllSchemas() {
         // D01: el schema `usuarios` NO es autoconsistente —V5 en adelante asume `erp_parameters`
@@ -61,10 +89,14 @@ public class FlywayConfig {
                 .baselineOnMigrate(true)
                 .baselineVersion(baselineVersion)
                 .createSchemas(true)
-                .validateOnMigrate(false)
+                .validateOnMigrate(validateOnMigrate)
                 .load();
 
-        flyway.repair();
+        if (repairOnMigrate) {
+            log.warn("Flyway[{}]: repair() activado por configuracion — se van a reescribir descripciones y checksums del historial.", schema);
+            flyway.repair();
+        }
+
         MigrateResult result = flyway.migrate();
 
         if (result.migrationsExecuted > 0) {
