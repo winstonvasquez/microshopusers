@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 
 import java.net.URI;
 import java.time.Instant;
@@ -141,6 +145,50 @@ public class GlobalExceptionHandler {
         detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
         return detail;
     }
+
+    /**
+     * Verbo HTTP incorrecto sobre una ruta existente: 405, no 500.
+     *
+     * <p>Sin este handler, el {@code @ExceptionHandler(Exception.class)} de mas abajo ENSOMBRECE el
+     * manejo por defecto de Spring MVC y un POST a una ruta que solo tiene GET sale como
+     * "Error interno del servidor". Quien integra contra la API se equivoca de verbo y se va a
+     * buscar el fallo en el servidor en vez de en su llamada. Es la misma familia del incidente ya
+     * documentado con {@code AccessDeniedException}, que reportaba un bloqueo cross-tenant como 500
+     * en vez de 403: un handler generico comiendose excepciones que traen su propia semantica HTTP.</p>
+     *
+     * <p>Se propaga la cabecera {@code Allow} con los verbos que la ruta si admite, que es lo que
+     * pide la especificacion para un 405 y lo que necesita un cliente para corregirse solo.</p>
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ProblemDetail> handleMetodoNoSoportado(HttpRequestMethodNotSupportedException ex) {
+        log.warn("Metodo HTTP no soportado: {} (admitidos: {})", ex.getMethod(), ex.getSupportedHttpMethods());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.METHOD_NOT_ALLOWED,
+                "El metodo " + ex.getMethod() + " no esta permitido en esta ruta");
+        detail.setType(URI.create("urn:users:method-not-allowed"));
+        detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
+        if (ex.getSupportedHttpMethods() != null) {
+            detail.setProperty("metodosPermitidos", ex.getSupportedHttpMethods().toString());
+        }
+        HttpHeaders headers = new HttpHeaders();
+        if (ex.getSupportedHttpMethods() != null) {
+            headers.setAllow(new java.util.LinkedHashSet<>(ex.getSupportedHttpMethods()));
+        }
+        return new ResponseEntity<>(detail, headers, HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
+    /**
+     * Content-Type no soportado: 415, no 500. Mismo motivo que el handler de arriba.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleMediaTypeNoSoportado(HttpMediaTypeNotSupportedException ex) {
+        log.warn("Content-Type no soportado: {}", ex.getContentType());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                "El tipo de contenido enviado no esta soportado en esta ruta");
+        detail.setType(URI.create("urn:users:unsupported-media-type"));
+        detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
+        return detail;
+    }
+
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneral(Exception ex) {
