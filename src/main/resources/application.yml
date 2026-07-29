@@ -91,7 +91,7 @@ server:
 
 microshop:
   internal:
-    token: ${MICROSHOP_INTERNAL_TOKEN:dev-internal-token-microshop-2026}
+    token: ${MICROSHOP_INTERNAL_TOKEN:}
 
 app:
   cors:

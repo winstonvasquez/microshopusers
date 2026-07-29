@@ -61,6 +61,29 @@ public class InternalServiceAuthenticationFilter extends OncePerRequestFilter {
         this.expectedToken = expectedToken;
     }
 
+    /**
+     * Avisa una sola vez, al arrancar, si no hay token s2s configurado.
+     *
+     * <p>Desde M08 el default de {@code microshop.internal.token} esta VACIO: el literal que habia
+     * commiteado en los 6 application.yml era el secreto realmente activo, porque nadie exportaba
+     * nunca la variable de entorno. Con el default vacio este filtro no autentica a nadie —el
+     * {@code hasText} de mas abajo lo garantiza, asi que no hay bypass— pero el sintoma seria un 401
+     * en llamadas internas legitimas sin ninguna pista de por que.</p>
+     *
+     * <p>El token lo exporta {@code erp.ps1}, que lo genera una vez y lo persiste en
+     * {@code .internal-token}. Arrancar un servicio por fuera de ese script deja el s2s sin
+     * funcionar, y este log es lo que lo explica.</p>
+     */
+    @jakarta.annotation.PostConstruct
+    void avisarSiFaltaToken() {
+        if (!StringUtils.hasText(expectedToken)) {
+            log.warn("microshop.internal.token vacio: NINGUNA llamada servicio-a-servicio se "
+                    + "autenticara. Arranca con erp.ps1, o exporta MICROSHOP_INTERNAL_TOKEN con el "
+                    + "mismo valor en los 6 servicios.");
+        }
+    }
+
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
