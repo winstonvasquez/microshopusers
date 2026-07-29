@@ -15,7 +15,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 
+// M05 — auditoria de escalada de privilegios. `AuditEntity` ya dejaba «quien toco por ultima vez y
+// cuando» (@PreUpdate sobre usuario_modificacion/fecha_modificacion), pero NO el valor anterior, que es
+// justo lo que importa para reconstruir un cambio de rol o una suspension de empresa. Envers es como
+// este proyecto ya audita: 19 entidades en rrhh, con una unica @RevisionEntity compartida
+// (RrhhRevisionEntity). Las tablas *_aud las crea usuarios/V38.
+@Audited
 @Entity
 @Table(name = "company")
 @Comment("Tabla de empresas (tenants)")
@@ -71,6 +79,10 @@ public class CompanyEntity extends AuditEntity {
     @Basic(fetch = FetchType.LAZY)
     @Column(name = "logo_data", columnDefinition = "bytea")
     @Comment("Bytes del logotipo (alternativa a logo_url)")
+    // NO se audita: Envers copiaria el binario del logo en company_aud en CADA cambio de la
+    // empresa. Es bloat de almacenamiento sin valor de auditoria — lo que M05 quiere rastrear es
+    // quien cambio el estado o los datos fiscales, no el historial de imagenes.
+    @NotAudited
     private byte[] logoData;
 
     @Column(name = "logo_mime", length = 50)

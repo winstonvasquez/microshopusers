@@ -16,7 +16,16 @@ import org.hibernate.annotations.Comment;
 
 import java.util.HashSet;
 import java.util.Set;
+import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
+import org.hibernate.envers.RelationTargetAuditMode;
 
+// M05 — auditoria de escalada de privilegios. `AuditEntity` ya dejaba «quien toco por ultima vez y
+// cuando» (@PreUpdate sobre usuario_modificacion/fecha_modificacion), pero NO el valor anterior, que es
+// justo lo que importa para reconstruir un cambio de rol o una suspension de empresa. Envers es como
+// este proyecto ya audita: 19 entidades en rrhh, con una unica @RevisionEntity compartida
+// (RrhhRevisionEntity). Las tablas *_aud las crea usuarios/V38.
+@Audited
 @Entity
 @Table(name = "usuario")
 @Comment("Tabla de usuarios del sistema con credenciales")
@@ -54,6 +63,10 @@ public class UsuarioEntity extends AuditEntity {
 
     @Column(name = "password", nullable = false, length = 100)
     @Comment("Contraseña encriptada")
+    // NO se audita: el historial de una escalada de privilegios no necesita los hashes de
+    // credenciales, y una tabla _aud acumulandolos seria un sitio mas donde viven, con retencion
+    // indefinida y otros permisos de lectura. Envers los incluiria por defecto.
+    @NotAudited
     private String password;
 
     @Column(name = "email", nullable = false, unique = true, length = 100)
@@ -63,15 +76,25 @@ public class UsuarioEntity extends AuditEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rol_id", nullable = false, foreignKey = @ForeignKey(name = "usuario_rol_fk"))
     @Comment("Rol asignado al usuario")
+    // El rol es el dato que se quiere auditar, pero RolEntity en si no se audita: interesa QUE rol
+    // tenia el usuario, no el historial del catalogo de roles. Sin NOT_AUDITED Envers falla al
+    // arrancar con "An audited relation to a non-audited entity".
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     private RolEntity rol;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "persona_id", nullable = false, foreignKey = @ForeignKey(name = "usuario_persona_fk"))
     @Comment("Persona asociada al usuario")
+    // PersonaEntity no se audita (datos personales, fuera del alcance de M05).
+    @Audited(targetAuditMode = RelationTargetAuditMode.NOT_AUDITED)
     private PersonaEntity persona;
 
     @Column(name = "pin_hash", length = 100)
     @Comment("Hash del PIN numérico para login rápido en POS")
+    // NO se audita: el historial de una escalada de privilegios no necesita los hashes de
+    // credenciales, y una tabla _aud acumulandolos seria un sitio mas donde viven, con retencion
+    // indefinida y otros permisos de lectura. Envers los incluiria por defecto.
+    @NotAudited
     private String pinHash;
 
     @OneToMany(mappedBy = "usuario", fetch = FetchType.LAZY)
