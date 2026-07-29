@@ -8,6 +8,7 @@ import com.microshop.users.infrastructure.persistence.repository.CompanyReposito
 import com.microshop.users.infrastructure.persistence.repository.CompanyModuleRepository;
 import com.microshop.users.infrastructure.persistence.repository.SaasModuleRepository;
 import com.microshop.users.shared.constants.ApiPaths;
+import com.microshop.users.shared.exception.NotFoundException;
 import com.microshop.users.shared.util.ImagenBinariaUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,34 @@ public class CompanyCommandService {
     /** {@code true} si la URL es la ruta calculada del logo binario de este servicio. */
     private static boolean esUrlLogoBinario(String url) {
         return url != null && url.startsWith(ApiPaths.COMPANIES + "/") && url.endsWith("/logo");
+    }
+
+    /**
+     * Suspende o reactiva una empresa tocando ÚNICAMENTE {@code active}.
+     *
+     * <p>Deliberadamente NO reutiliza {@link #updateCompany}: ese método sobrescribe ocho campos con
+     * lo que venga en el DTO, así que usarlo para girar un booleano pone a null todo lo que el
+     * llamador no reenvíe. Es la misma clase de fallo que el proyecto ya documentó con
+     * {@code form.getRawValue()} en el frontend: un campo ausente no se ignora, borra el dato.</p>
+     *
+     * <p>Queda registrado en el log de la aplicación y, desde M05, también en {@code company_aud} vía
+     * Envers, con el valor anterior — que es lo que permite reconstruir quién suspendió a quién.</p>
+     */
+    public CompanyEntity cambiarEstado(Long id, boolean activa) {
+        CompanyEntity company = companyRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(msg.get("company.not.found.with.id", id)));
+
+        if (company.isActive() == activa) {
+            // Idempotente: repetir la operación no es un error, y devolver la empresa tal cual evita
+            // que el frontend tenga que distinguir «ya estaba así» de «no se pudo».
+            log.info("Empresa {} ya estaba {}; no se cambia nada", id, activa ? "activa" : "suspendida");
+            return company;
+        }
+
+        company.setActive(activa);
+        CompanyEntity guardada = companyRepository.save(company);
+        log.info("Empresa {} ({}) {}", id, company.getRuc(), activa ? "REACTIVADA" : "SUSPENDIDA");
+        return guardada;
     }
 
     public void deleteCompany(Long id) {

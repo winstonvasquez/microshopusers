@@ -15,6 +15,7 @@ import com.microshop.users.shared.util.SpreadsheetExporter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -256,5 +257,33 @@ public class CompanyController {
             @RequestParam boolean enabled) {
         companyCommandService.toggleModule(companyId, moduleId, enabled);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Suspende o reactiva una empresa, tocando ÚNICAMENTE su estado.
+     *
+     * <p>Antes esto sólo se podía hacer de dos maneras, y las dos son malas. Con
+     * {@code DELETE /{id}}, que hace un soft delete pero se llama «eliminar» y no puede reactivar. O
+     * con {@code PUT /{id}} reenviando el DTO completo con el flag girado, que es lo que hacía el
+     * método {@code toggleActive()} del frontend —y ése es el problema real: {@code updateCompany}
+     * sobrescribe ocho campos de golpe, así que cualquier campo que la fila de la lista no llevara se
+     * ponía a null. En particular el {@code domain}, que es justamente el campo que hoy está vacío en
+     * las siete empresas y del que depende la resolución de tenant del checkout de invitado. Girar el
+     * estado no debe poder borrar datos de la empresa.</p>
+     *
+     * <p>SUPERADMIN, no {@code @RequiresTenantAccess(allowSuperAdmin = true)} como el DELETE:
+     * suspender es una operación de plataforma. Que el ADMIN de una empresa pueda desactivarse a sí
+     * mismo es un accidente del soft delete, no una capacidad que convenga extender.</p>
+     */
+    @PatchMapping("/{id}/estado")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    @Operation(summary = "Suspender o reactivar una empresa (solo el estado)",
+               description = "Operación de plataforma: no toca ningún otro campo de la empresa.")
+    public ResponseEntity<CompanyResponseDto> cambiarEstado(
+            @PathVariable Long id,
+            @RequestBody @Valid CambiarEstadoEmpresaRequest request) {
+        log.info("PATCH /api/companies/{}/estado - activa={}", id, request.activa());
+        return ResponseEntity.ok(
+                companyMapper.toDto(companyCommandService.cambiarEstado(id, request.activa())));
     }
 }

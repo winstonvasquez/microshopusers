@@ -136,6 +136,12 @@ class SuspensionDeTenantTest {
             jdbc.update("delete from dbshopusuarios.notifications where user_id = ?", usuarioId);
             jdbc.update("delete from dbshopusuarios.vendedor where usuario_id = ?", usuarioId);
             jdbc.update("delete from dbshopusuarios.user_company where usuario_id = ?", usuarioId);
+            // Tablas de auditoria de Envers (M05): el @AfterAll no las conocia y la suite dejaba
+            // filas de revision de sus propios fixtures. Se borran ANTES que la fila real, porque
+            // las _aud tienen FK hacia revinfo pero no hacia la tabla auditada: el orden importa
+            // solo para que no queden huerfanas.
+            jdbc.update("delete from dbshopusuarios.usuario_aud where id = ?", usuarioId);
+            jdbc.update("delete from dbshopusuarios.user_company_aud where usuario_id = ?", usuarioId);
             jdbc.update("delete from dbshopusuarios.usuario where id = ?", usuarioId);
             if (personaId != null) {
                 jdbc.update("delete from dbshopusuarios.persona where id = ?", personaId);
@@ -147,6 +153,8 @@ class SuspensionDeTenantTest {
             jdbc.update("delete from dbshopusuarios.company_module where company_id = ?", cid);
             jdbc.update("delete from dbshopusuarios.company_rubro where company_id = ?", cid);
             jdbc.update("delete from dbshopusuarios.saas_subscription where company_id = ?", cid);
+            jdbc.update("delete from dbshopusuarios.user_company_aud where company_id = ?", cid);
+            jdbc.update("delete from dbshopusuarios.company_aud where id = ?", cid);
             jdbc.update("delete from dbshopusuarios.company where id = ?", cid);
         }
     }
