@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.output.MigrateResult;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
@@ -30,20 +31,35 @@ public class FlywayConfig {
 
     private final DataSource dataSource;
 
+    /**
+     * Version de baseline del schema `usuarios` (D01). Solo tiene efecto en un esquema SIN tabla de
+     * historial, o sea en un entorno NUEVO; en el actual no cambia nada.
+     *
+     * <p>La propiedad es por schema —no {@code spring.flyway.baseline-version}— porque los dos schemas
+     * de este servicio necesitan valores distintos: `usuarios` parte de un dump y `rrhh` se reconstruye
+     * de cero. Ver la decision D01 del backlog.</p>
+     */
+    @Value("${spring.flyway.baseline-version-usuarios:0}")
+    private String baselineUsuarios;
+
     @PostConstruct
     public void migrateAllSchemas() {
-        migrateSchema("dbshopusuarios", "classpath:db/migration/usuarios");
-        migrateSchema("dbshoprrhh", "classpath:db/migration/rrhh");
+        // D01: el schema `usuarios` NO es autoconsistente —V5 en adelante asume `erp_parameters`
+        // creada y ninguna migracion la crea—, asi que un entorno nuevo parte de un dump y se
+        // declara el punto de partida. `rrhh` SI lo es desde que V9 crea sus tablas de Envers,
+        // por eso se queda en 0 y se reconstruye de cero sin dump.
+        migrateSchema("dbshopusuarios", "classpath:db/migration/usuarios", baselineUsuarios);
+        migrateSchema("dbshoprrhh", "classpath:db/migration/rrhh", "0");
     }
 
-    private void migrateSchema(String schema, String location) {
+    private void migrateSchema(String schema, String location, String baselineVersion) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
                 .schemas(schema)
                 .defaultSchema(schema)
                 .locations(location)
                 .baselineOnMigrate(true)
-                .baselineVersion("0")
+                .baselineVersion(baselineVersion)
                 .createSchemas(true)
                 .validateOnMigrate(false)
                 .load();

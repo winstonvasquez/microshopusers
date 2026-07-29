@@ -46,6 +46,9 @@ spring:
       idle-timeout: 300000
       max-lifetime: 600000
   flyway:
+    # D01: ultima version contenida en el dump de esquema del que parte un entorno nuevo.
+    # Solo aplica si el schema no tiene tabla de historial. Actualizar al crear un dump nuevo.
+    baseline-version-usuarios: "38"
     enabled: false
 
   mail:
