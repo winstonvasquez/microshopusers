@@ -154,8 +154,17 @@ public class CompanyController {
         return valor != null ? valor : "";
     }
 
+    // Los tres endpoints por {id} llevan @RequiresTenantAccess(paramName = "id"): aquí el id del
+    // path ES el companyId, así que el aspecto puede compararlo contra el del JWT. Hasta
+    // 2026-07-28 no lo llevaban y SecurityConfig solo exigía el ROL (ADMIN|SUPERADMIN) sobre
+    // /users/api/companies/**, sin la identidad del tenant: cualquier ADMIN podía leer, reescribir
+    // (incluido `domain`, con el que se resuelve el tenant en el checkout de invitado) o desactivar
+    // la empresa de otro cliente del SaaS cambiando el id de la URL. Verificado con
+    // AislamientoMultiTenantTest, que fallaba antes de este cambio.
+
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener empresa por ID", description = "Retorna todos los campos de la empresa")
+    @RequiresTenantAccess(paramName = "id", allowSuperAdmin = true)
+    @Operation(summary = "Obtener empresa por ID", description = "Retorna todos los campos de la empresa propia")
     public ResponseEntity<CompanyResponseDto> getCompanyById(@PathVariable @NonNull Long id) {
         return companyQueryService.findFullById(id)
                 .map(ResponseEntity::ok)
@@ -163,6 +172,7 @@ public class CompanyController {
     }
 
     @PutMapping("/{id}")
+    @RequiresTenantAccess(paramName = "id", allowSuperAdmin = true)
     @Operation(summary = "Actualizar empresa")
     public ResponseEntity<CompanyResponseDto> updateCompany(@PathVariable Long id,
             @RequestBody @Valid CompanyRequestDto companyDto) {
@@ -171,6 +181,7 @@ public class CompanyController {
     }
 
     @DeleteMapping("/{id}")
+    @RequiresTenantAccess(paramName = "id", allowSuperAdmin = true)
     @Operation(summary = "Desactivar empresa (soft delete)")
     public ResponseEntity<Void> deleteCompany(@PathVariable Long id) {
         companyCommandService.deleteCompany(id);

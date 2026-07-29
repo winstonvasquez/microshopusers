@@ -34,13 +34,10 @@ public class TenantAccessAspect {
         Method method = signature.getMethod();
         RequiresTenantAccess annotation = method.getAnnotation(RequiresTenantAccess.class);
 
-        Long requestedCompanyId = extractRequestedCompanyId(joinPoint, annotation.paramName());
-        if (requestedCompanyId == null) {
-            log.warn("@RequiresTenantAccess en {}.{} pero no se pudo resolver companyId — saltando",
-                    method.getDeclaringClass().getSimpleName(), method.getName());
-            return;
-        }
-
+        // La autenticación y los bypass se evalúan ANTES de resolver el tenant. Con fail-closed el
+        // orden importa: al revés, una petición sin autenticar moriría con "no se pudo resolver
+        // companyId" en vez de con su motivo real, y además el `return` de la rama no-resuelta
+        // saltaba también esta comprobación de autenticación.
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
             throw new AccessDeniedException("Sin autenticación — no se puede validar tenant");
@@ -50,6 +47,16 @@ public class TenantAccessAspect {
             log.debug("Bypass tenant check para SUPERADMIN en {}.{}",
                     method.getDeclaringClass().getSimpleName(), method.getName());
             return;
+        }
+
+        Long requestedCompanyId = extractRequestedCompanyId(joinPoint, annotation.paramName());
+        if (requestedCompanyId == null) {
+            // Fail-CLOSED: antes se hacía `log.warn` + `return` y la petición quedaba SIN validar.
+            // No poder resolver el companyId es un bug de configuración del endpoint o un intento
+            // de bypass (omitir el parámetro a propósito); en ambos casos se rechaza, no se permite.
+            log.error("@RequiresTenantAccess en {}.{} no pudo resolver companyId solicitado — acceso denegado (fail-closed)",
+                    method.getDeclaringClass().getSimpleName(), method.getName());
+            throw new AccessDeniedException("No se pudo determinar el companyId solicitado — acceso denegado");
         }
 
         Long jwtCompanyId = extractJwtCompanyId(auth);
@@ -77,6 +84,18 @@ public class TenantAccessAspect {
                 return toLong(args[i]);
             }
         }
+
+        // Estrategia 1b: el tenant viaja DENTRO del @RequestBody con el nombre real del paramName
+        // (p.ej. `tenantId`), no como parámetro suelto. Sin esto, el fail-closed rechazaría
+        // endpoints legítimos cuyo tenant SÍ viene, solo que en el cuerpo. Es el mismo fix que ya
+        // se aplicó en contabilidad tras el incidente de tesorería (se validaba la cabecera
+        // mientras el servicio escribía con el cuerpo).
+        for (Object arg : args) {
+            if (arg == null) continue;
+            Long delCuerpo = leerAccesor(arg, paramName);
+            if (delCuerpo != null) return delCuerpo;
+        }
+
         for (Object arg : args) {
             if (arg == null) continue;
             try {
@@ -100,6 +119,38 @@ public class TenantAccessAspect {
             if (header != null && !header.isBlank()) {
                 Long parsed = toLong(header.trim());
                 if (parsed != null) return parsed;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Lee {@code arg.<nombre>()} (estilo record) o {@code arg.get<Nombre>()} (estilo bean).
+     * Devuelve {@code null} si el accesor no existe o el valor es nulo, para que la búsqueda
+     * continúe con el resto de estrategias.
+     */
+    /**
+     * Nombres aceptados como designadores del tenant en la estrategia 1b. Sin esta lista blanca,
+     * un {@code @RequiresTenantAccess(paramName="id")} sobre un método SIN parámetro {@code id}
+     * haría que 1b leyera {@code getId()} del cuerpo y comparara una PK de entidad contra el
+     * companyId del JWT: 403 arbitrario, o peor, un permit si la PK coincidiera con el companyId.
+     */
+    private static boolean esNombreDeTenant(String nombre) {
+        return "companyId".equals(nombre) || "tenantId".equals(nombre) || "empresaId".equals(nombre);
+    }
+
+    private Long leerAccesor(Object arg, String nombre) {
+        if (!esNombreDeTenant(nombre)) return null;
+        String getter = "get" + Character.toUpperCase(nombre.charAt(0)) + nombre.substring(1);
+        for (String candidato : new String[] { nombre, getter }) {
+            try {
+                Method m = arg.getClass().getMethod(candidato);
+                Object v = m.invoke(arg);
+                if (v != null) return toLong(v);
+            } catch (NoSuchMethodException ignored) {
+                // el argumento no expone ese campo: se prueba el siguiente candidato
+            } catch (Exception e) {
+                log.debug("No se pudo leer {}.{}(): {}", arg.getClass().getSimpleName(), candidato, e.toString());
             }
         }
         return null;

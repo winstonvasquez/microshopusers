@@ -21,4 +21,14 @@ public class UserCompanyQueryService {
     public List<UserCompanyEntity> getUserCompanies(@NonNull Long userId) {
         return userCompanyRepository.findByUsuarioId(userId);
     }
+
+    /**
+     * ¿El usuario indicado pertenece al tenant indicado? Es la pregunta que los endpoints por
+     * {@code {id}} de usuario tienen que hacerse antes de responder: como {@code UsuarioEntity} no
+     * lleva {@code company_id}, sin esta comprobación un ADMIN de cualquier empresa podía leer,
+     * modificar o borrar usuarios de otra con solo cambiar el id de la URL.
+     */
+    public boolean perteneceAlTenant(@NonNull Long usuarioId, @NonNull Long companyId) {
+        return userCompanyRepository.existsByUsuarioIdAndCompanyId(usuarioId, companyId);
+    }
 }

@@ -64,21 +64,17 @@ public class InitialUserConfig implements CommandLineRunner {
     }
 
     private CompanyEntity getOrCreateDefaultCompany() {
+        // B08 (2026-07-28): antes esto reactivaba la empresa demo en CADA arranque
+        // (activateCompanyIfInactive). Con la suspensión de tenant ya operativa, eso significaba que
+        // suspender esta empresa no sobrevivía a un reinicio del servicio: el seed la resucitaba en
+        // silencio. El seed ahora solo CREA la empresa si no existe; si un operador la suspendió,
+        // se respeta su decisión.
         return companyRepository.findByRuc("20000000001")
-                .map(this::activateCompanyIfInactive)
                 .orElseGet(() -> companyRepository.save(CompanyEntity.builder()
                         .name("Microshop Default Company")
                         .ruc("20000000001")
                         .isActive(true)
                         .build()));
-    }
-
-    private CompanyEntity activateCompanyIfInactive(CompanyEntity company) {
-        if (!company.isActive()) {
-            company.setActive(true);
-            return companyRepository.save(company);
-        }
-        return company;
     }
 
     private UsuarioEntity getOrCreateAdminUser(RolEntity role, PersonaEntity persona) {

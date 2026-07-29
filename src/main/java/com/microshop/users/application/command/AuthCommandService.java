@@ -22,6 +22,8 @@ import com.microshop.users.infrastructure.persistence.repository.UserCompanyRepo
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import com.microshop.users.domain.service.EmailService;
 import com.microshop.users.domain.service.OtpService;
+import com.microshop.users.shared.exception.BusinessException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
@@ -115,12 +117,24 @@ public class AuthCommandService {
         if (companyId == null)
             return;
 
-        boolean belongsToCompany = userCompanies.stream()
-                .anyMatch(uc -> uc.getCompany().getId().equals(companyId) && uc.isActive());
+        var membresia = userCompanies.stream()
+                .filter(uc -> uc.getCompany().getId().equals(companyId) && uc.isActive())
+                .findFirst();
 
-        if (!belongsToCompany) {
-            throw new IllegalArgumentException(
-                    msg.get("auth.user.company.mismatch"));
+        if (membresia.isEmpty()) {
+            // BusinessException mapea a 400 igual que la IllegalArgumentException que había antes:
+            // el código HTTP no cambia, solo se usa la excepción del proyecto.
+            throw new BusinessException(msg.get("auth.user.company.mismatch"));
+        }
+
+        // B08 (2026-07-28): hasta ahora aquí solo se comprobaba `uc.isActive()`, que es el estado de
+        // la MEMBRESÍA, nunca `company.isActive()`. Consecuencia: "suspender" una empresa con
+        // DELETE /users/api/companies/{id} (que hace soft-delete poniendo is_active=false) no
+        // impedía que sus usuarios siguieran entrando y operando con total normalidad — la
+        // suspensión de tenant no existía funcionalmente. Se valida en el login Y en el cambio de
+        // empresa, porque switchCompany reutiliza este mismo método.
+        if (!membresia.get().getCompany().isActive()) {
+            throw new AccessDeniedException(msg.get("auth.company.suspended"));
         }
     }
 

@@ -11,8 +11,11 @@ import com.microshop.users.infrastructure.persistence.repository.SaasSubscriptio
 import com.microshop.users.infrastructure.persistence.repository.UserCompanyRepository;
 import com.microshop.users.infrastructure.persistence.repository.UserCompanyRoleRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
+import com.microshop.users.config.security.SecurityContextUtils;
+import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -38,6 +41,15 @@ public class UserCompanyCommandService {
         var user = findUser(userId);
         var company = findCompany(companyId);
         var role = findRole(roleId);
+
+        // El endpoint valida el companyId contra el JWT (@RequiresTenantAccess) pero el roleId
+        // llegaba SIN validar: cualquier ADMIN podía asignar el rol SUPERADMIN por esta tabla
+        // auxiliar, saltándose la restricción del endpoint dedicado PUT /users/{id}/role, que exige
+        // hasRole(SUPERADMIN). Mismo guard que UserCommandService.updateUser (líneas 95-106).
+        if (AppConstants.Seguridad.SUPERADMIN.equalsIgnoreCase(role.getNombre())
+                && !SecurityContextUtils.isSuperAdmin()) {
+            throw new AccessDeniedException("Solo un SUPERADMIN puede otorgar el rol SUPERADMIN");
+        }
 
         var userCompany = getOrCreateUserCompany(user, company);
         ensureUserCompanyIsActive(userCompany, company);

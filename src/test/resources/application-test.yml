@@ -1,0 +1,22 @@
+# Perfil de test de integración.
+#
+# Apunta a la MISMA base de datos de desarrollo (dbdeveloper) que usa el servicio: no hay Docker
+# en esta máquina, así que Testcontainers no es una opción. A cambio, todo test que escriba datos
+# DEBE limpiarlos en su @AfterAll — ver AislamientoMultiTenantTest#limpiarDatosDePrueba.
+#
+# Los datos de prueba se crean por la vía pública del producto (POST /users/api/saas/register) y se
+# identifican por un RUC reservado 2099900xxxx, para que la limpieza sea localizable y no toque
+# ninguna empresa real del entorno.
+spring:
+  main:
+    banner-mode: "off"
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+logging:
+  level:
+    root: WARN
+    com.microshop: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN

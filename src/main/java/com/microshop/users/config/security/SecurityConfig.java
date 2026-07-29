@@ -56,6 +56,7 @@ public class SecurityConfig {
         }
 
         private final JwtAuthenticationFilter jwtAuthFilter;
+        private final InternalServiceAuthenticationFilter internalServiceAuthFilter;
         private final UserDetailsService userDetailsService;
 
         @Value("${app.cors.allowed-origins:http://localhost:4200}")
@@ -79,9 +80,14 @@ public class SecurityConfig {
                                                 // Las subidas (POST) siguen protegidas por las reglas de abajo.
                                                 .requestMatchers(HttpMethod.GET, "/users/api/companies/*/logo").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/hr/api/employees/*/foto").permitAll()
-                                                .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
-                                                .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
-                                                .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.ADMIN)
+                                                // B09 (2026-07-28): estos parámetros son GLOBALES (tenant_id IS NULL) y la
+                                                // escritura tocaba esa fila única, así que con rol ADMIN cualquier empresa
+                                                // podía cambiar IGV_RATE —la tasa nacional de IGV— para TODOS los tenants.
+                                                // Son configuración de plataforma, no de empresa: solo SUPERADMIN escribe.
+                                                // El GET sigue abierto a cualquier autenticado (la app necesita leer el IGV).
+                                                .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
+                                                .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
+                                                .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
                                                 // GET incluido: /companies (list/paged/export/{id}) NO tenia
                                                 // ninguna proteccion (caia al permitAll de abajo) — cualquiera,
                                                 // sin login, podia listar TODAS las empresas. Unico consumidor
@@ -101,6 +107,12 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.POST, "/users/api/users").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
                                                 .requestMatchers(HttpMethod.PUT, "/users/api/users/*").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
                                                 .requestMatchers(HttpMethod.DELETE, "/users/api/users/*").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
+                                                // Alta y aprobación de vendedores son acciones administrativas: antes
+                                                // no tenían matcher y caían en anyRequest().authenticated(), así que
+                                                // cualquier rol podía crear un perfil de vendedor o aprobarlo. El
+                                                // aislamiento por empresa lo aporta además el scope de V37 (B07).
+                                                .requestMatchers(HttpMethod.POST, "/users/api/v1/vendedores/**").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
+                                                .requestMatchers(HttpMethod.PATCH, "/users/api/v1/vendedores/**").hasAnyRole(AppConstants.Seguridad.ADMIN, AppConstants.Seguridad.SUPERADMIN)
                                                 // Configuración de planes SaaS (precios, módulos incluidos) es config
                                                 // GLOBAL de la plataforma, no de un tenant — solo SUPERADMIN. Antes del
                                                 // permitAll de /users/api/saas/** (primer match gana).
@@ -126,6 +138,12 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authenticationProvider(authenticationProvider())
+                                // El filtro s2s va ANTES del de JWT: una llamada interna no trae
+                                // Authorization, así que si corriera después no habría nada que
+                                // autenticar y la petición moriría en anyRequest().authenticated().
+                                // Es lo que dejaba el KPI de RRHH del dashboard ejecutivo en cero
+                                // para todos los tenants.
+                                .addFilterBefore(internalServiceAuthFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
                 return http.build();

@@ -39,6 +39,10 @@ public class VendedorEntity extends AuditEntity {
     @Comment("Usuario asociado a este perfil de vendedor")
     private UsuarioEntity usuario;
 
+    @Column(name = "company_id", nullable = false)
+    @Comment("Empresa (tenant) dueña del perfil de vendedor — discriminador de aislamiento, V37")
+    private Long companyId;
+
     @Column(name = "dni_ruc", length = 20)
     @Comment("Documento de identidad o RUC del vendedor")
     private String dniRuc;

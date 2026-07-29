@@ -8,6 +8,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.microshop.users.application.dto.VendedorResponseDto;
+import com.microshop.users.shared.exception.NotFoundException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,23 +21,41 @@ public class VendedorQueryService {
     private final VendedorRepository vendedorRepository;
     private final MessageSource messageSource;
 
+    /*
+     * B07 (V37): todas las consultas se acotan por empresa. El parámetro `companyId` es el tenant
+     * del llamante y solo puede ser null para un SUPERADMIN (bypass explícito). Antes de esto,
+     * `getAllSellers()` hacía un `findAll()` que devolvía los vendedores de TODA la plataforma y
+     * `getSellerById` resolvía cualquier id sin comprobar la empresa.
+     *
+     * Se lanza NotFoundException (404) y no AccessDenied (403) para no confirmarle a un tenant
+     * ajeno que el id existe.
+     */
+
     @Transactional(readOnly = true)
-    public VendedorResponseDto getSellerByUsuarioId(Long usuarioId) {
-        return vendedorRepository.findByUsuarioId(usuarioId)
+    public VendedorResponseDto getSellerByUsuarioId(Long usuarioId, Long companyId) {
+        return (companyId == null
+                        ? vendedorRepository.findByUsuarioId(usuarioId)
+                        : vendedorRepository.findByUsuarioIdAndCompanyId(usuarioId, companyId))
                 .map(this::mapToDto)
-                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage("vendedor.profile.not.found.for.user", null, LocaleContextHolder.getLocale())));
+                .orElseThrow(() -> new NotFoundException(messageSource.getMessage(
+                        "vendedor.profile.not.found.for.user", null, LocaleContextHolder.getLocale())));
     }
 
     @Transactional(readOnly = true)
-    public VendedorResponseDto getSellerById(Long id) {
-        return vendedorRepository.findById(id)
+    public VendedorResponseDto getSellerById(Long id, Long companyId) {
+        return (companyId == null
+                        ? vendedorRepository.findById(id)
+                        : vendedorRepository.findByIdAndCompanyId(id, companyId))
                 .map(this::mapToDto)
-                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage("vendedor.not.found", null, LocaleContextHolder.getLocale())));
+                .orElseThrow(() -> new NotFoundException(messageSource.getMessage(
+                        "vendedor.not.found", null, LocaleContextHolder.getLocale())));
     }
 
     @Transactional(readOnly = true)
-    public List<VendedorResponseDto> getAllSellers() {
-        return vendedorRepository.findAll().stream()
+    public List<VendedorResponseDto> getAllSellers(Long companyId) {
+        return (companyId == null
+                        ? vendedorRepository.findAll()
+                        : vendedorRepository.findByCompanyId(companyId)).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }

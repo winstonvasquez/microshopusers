@@ -3,6 +3,7 @@ package com.microshop.users.application.command;
 import com.microshop.users.infrastructure.persistence.entity.*;
 import com.microshop.users.infrastructure.persistence.repository.*;
 import com.microshop.users.shared.exception.ConflictException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
@@ -130,6 +135,52 @@ class UserCompanyCommandServiceTest {
         service.addUserToCompany(USER_ID, COMPANY_ID, ROLE_ID);
 
         verify(subscriptionRepository, never()).findByCompanyId(any());
+        verify(userCompanyRoleRepository).save(any(UserCompanyRoleEntity.class));
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Escalada de privilegios por la tabla auxiliar user_company_role.
+    // El endpoint POST /user-companies/assign valida el companyId contra el JWT
+    // (@RequiresTenantAccess) pero el roleId llegaba SIN validar, así que cualquier ADMIN podía
+    // asignar el rol SUPERADMIN por esta vía, saltándose el endpoint dedicado
+    // PUT /users/{id}/role, que sí exige hasRole(SUPERADMIN).
+    // ---------------------------------------------------------------------------------------
+
+    private void autenticarComo(String... authorities) {
+        var auth = new UsernamePasswordAuthenticationToken("caller", null,
+                java.util.Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList());
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @AfterEach
+    void limpiarContextoDeSeguridad() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("Un ADMIN no puede asignar el rol SUPERADMIN por la tabla de membresías")
+    void adminCannotGrantSuperadminRole() {
+        role.setNombre("SUPERADMIN");
+        autenticarComo("ROLE_ADMIN");
+
+        assertThatThrownBy(() -> service.addUserToCompany(USER_ID, COMPANY_ID, ROLE_ID))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(userCompanyRepository, never()).save(any(UserCompanyEntity.class));
+        verify(userCompanyRoleRepository, never()).save(any(UserCompanyRoleEntity.class));
+    }
+
+    @Test
+    @DisplayName("Un SUPERADMIN sí puede asignar el rol SUPERADMIN")
+    void superadminCanGrantSuperadminRole() {
+        role.setNombre("SUPERADMIN");
+        autenticarComo("ROLE_SUPERADMIN");
+        UserCompanyEntity active = UserCompanyEntity.builder()
+                .id(52L).usuario(user).company(company).isActive(true).build();
+        when(userCompanyRepository.findByUsuarioIdAndCompanyId(USER_ID, COMPANY_ID)).thenReturn(Optional.of(active));
+
+        service.addUserToCompany(USER_ID, COMPANY_ID, ROLE_ID);
+
         verify(userCompanyRoleRepository).save(any(UserCompanyRoleEntity.class));
     }
 }

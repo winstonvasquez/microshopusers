@@ -9,4 +9,12 @@ import java.util.Optional;
 @Repository
 public interface VendedorRepository extends JpaRepository<VendedorEntity, Long> {
     Optional<VendedorEntity> findByUsuarioId(Long usuarioId);
+
+    // Variantes acotadas por tenant (V37). Las no acotadas quedan SOLO para el bypass explícito
+    // de SUPERADMIN; cualquier otro uso reintroduce la fuga cross-tenant que corrigió B07.
+    java.util.List<VendedorEntity> findByCompanyId(Long companyId);
+
+    Optional<VendedorEntity> findByIdAndCompanyId(Long id, Long companyId);
+
+    Optional<VendedorEntity> findByUsuarioIdAndCompanyId(Long usuarioId, Long companyId);
 }

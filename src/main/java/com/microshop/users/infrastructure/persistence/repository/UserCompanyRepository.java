@@ -20,4 +20,11 @@ public interface UserCompanyRepository extends JpaRepository<UserCompanyEntity, 
     List<UserCompanyEntity> findByCompanyId(Long companyId);
 
     long countByCompanyIdAndIsActiveTrue(Long companyId);
+
+    /**
+     * Base de la defensa IDOR de los endpoints por {@code {id}} de usuario: {@code UsuarioEntity}
+     * no tiene {@code company_id} propio, así que la pertenencia a un tenant SOLO puede resolverse
+     * por esta tabla de membresías.
+     */
+    boolean existsByUsuarioIdAndCompanyId(Long usuarioId, Long companyId);
 }

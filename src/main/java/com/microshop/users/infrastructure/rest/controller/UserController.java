@@ -2,6 +2,7 @@ package com.microshop.users.infrastructure.rest.controller;
 
 import com.microshop.users.application.command.AuthCommandService;
 import com.microshop.users.application.command.UserCommandService;
+import com.microshop.users.application.query.UserCompanyQueryService;
 import com.microshop.users.application.query.UserQueryService;
 import com.microshop.users.application.dto.ChangePasswordRequest;
 import com.microshop.users.application.dto.ChangeRoleRequest;
@@ -57,6 +58,7 @@ public class UserController {
     private final UserCommandService userCommandService;
     private final UserQueryService userQueryService;
     private final AuthCommandService authCommandService;
+    private final UserCompanyQueryService userCompanyQueryService;
 
     /**
      * Resuelve el companyId a usar como scope de tenant: {@code null} SOLO para un SUPERADMIN
@@ -145,20 +147,45 @@ public class UserController {
         return valor != null ? valor : "";
     }
 
+    /**
+     * Defensa IDOR de los endpoints por {@code {id}}: ¿este usuario es alcanzable desde el tenant
+     * del llamante? Como {@code UsuarioEntity} NO tiene {@code company_id}, la pertenencia se
+     * resuelve por la tabla de membresías {@code user_company}.
+     *
+     * <p>Hasta 2026-07-28 estos endpoints resolvían por {@code findById(id)} sin acotar, de modo
+     * que un ADMIN de cualquier empresa podía leer la PII (documento, fecha de nacimiento),
+     * cambiar la contraseña o borrar al administrador de otra empresa con solo cambiar el id de la
+     * URL. Verificado con {@code AislamientoMultiTenantTest}, que fallaba antes de este cambio.</p>
+     *
+     * <p>Un SUPERADMIN no se acota: {@code resolveTenantScope()} devuelve {@code null} por diseño.</p>
+     */
+    private boolean alcanzableEnMiTenant(Long userId) {
+        Long scope = resolveTenantScope();
+        if (scope == null) return true; // SUPERADMIN
+        return userCompanyQueryService.perteneceAlTenant(userId, scope);
+    }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener usuario por ID")
+    @Operation(summary = "Obtener usuario por ID",
+               description = "Acotado al tenant del llamante: un usuario de otra empresa responde 404.")
     public ResponseEntity<UserResponseDto> getUserById(@PathVariable @NonNull Long id) {
         log.info("GET /api/users/{} - Obteniendo usuario por ID", id);
+        // 404 y no 403 a propósito: un 403 confirmaría a un tenant ajeno que el id existe.
+        if (!alcanzableEnMiTenant(id)) return ResponseEntity.notFound().build();
         return userQueryService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/username/{username}")
-    @Operation(summary = "Obtener usuario por username")
+    @Operation(summary = "Obtener usuario por username",
+               description = "Acotado al tenant del llamante: un usuario de otra empresa responde 404.")
     public ResponseEntity<UserResponseDto> getUserByUsername(@PathVariable @NonNull String username) {
         log.info("GET /api/users/username/{} - Obteniendo usuario por username", username);
+        // Se resuelve primero y se acota después por id: así este endpoint deja de servir como
+        // oráculo de existencia de cuentas de otras empresas para preparar credential stuffing.
         return userQueryService.findByUsername(username)
+                .filter(u -> alcanzableEnMiTenant(u.id()))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -182,14 +209,19 @@ public class UserController {
             @PathVariable @NonNull Long id,
             @RequestBody @Valid UserRequestDto userDto) {
         log.info("PUT /api/users/{} - Actualizando usuario", id);
+        // Sin esto, un ADMIN ajeno podía cambiar la contraseña o el email de este usuario
+        // (toma de cuenta cross-tenant). El guard de rol de SecurityConfig no lo cubría: exige
+        // ADMIN, pero no que el ADMIN sea de la misma empresa que el usuario destino.
+        if (!alcanzableEnMiTenant(id)) return ResponseEntity.notFound().build();
         UserResponseDto updated = userCommandService.updateUser(id, userDto);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Desactivar usuario (soft delete)")
+    @Operation(summary = "Eliminar usuario", description = "Acotado al tenant del llamante.")
     public ResponseEntity<Void> deleteUser(@PathVariable @NonNull Long id) {
         log.info("DELETE /api/users/{} - Eliminando usuario", id);
+        if (!alcanzableEnMiTenant(id)) return ResponseEntity.notFound().build();
         userCommandService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
