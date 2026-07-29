@@ -1,0 +1,55 @@
+# CI de microshopusers
+#
+# ALCANCE DELIBERADAMENTE LIMITADO, y conviene saber por qué antes de "arreglarlo":
+#
+#  * Se compila main + test y se corren los tests UNITARIOS. Eso es lo que hoy puede correr en
+#    un runner limpio y dar una señal verdadera.
+#  * Los tests de INTEGRACIÓN quedan excluidos (`**/aislamiento/**`). No es pereza: los seis
+#    `application-test.yml` del monorepo apuntan literalmente a la base de desarrollo compartida
+#    (`jdbc:postgresql://localhost:5432/dbdeveloper`), porque no hay Docker en la máquina de
+#    desarrollo y Testcontainers no era una opción. En un runner no existe esa base.
+#  * Levantar un PostgreSQL de servicio en el runner NO alcanza todavía: tres de los seis
+#    servicios no pueden construir su esquema desde cero con Flyway (decisión D01 del backlog —
+#    p.ej. en ventas, V2 hace TRUNCATE de tablas que ninguna migración anterior crea, y en
+#    compras V5 referencia `proveedor` cuando V1 creó `proveedors`). Mientras eso no se decida
+#    —baseline con dump, o reparación—, un job de integración sería rojo por una razón que no
+#    tiene nada que ver con el commit que lo disparó, y un CI que siempre está rojo se ignora.
+#
+# Es decir: este CI cubre lo que puede cubrir de verdad, y lo que falta está identificado y
+# atribuido, no escondido detrás de un check verde.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  build:
+    name: Compilar y tests unitarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 22
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '22'
+          cache: maven
+
+      # El wrapper está commiteado sin bit de ejecución (modo 100644 en git, porque el repo se
+      # gestiona desde Windows). Sin esto, `./mvnw` falla con "Permission denied" en Linux.
+      - name: Hacer ejecutable el wrapper
+        run: chmod +x ./mvnw
+
+      - name: Compilar main y test
+        run: ./mvnw -B -ntp clean test-compile
+
+      # La exclusión se verificó a mano antes de cablearla: en microshopventas selecciona las 5
+      # clases unitarias (18 tests) y deja fuera la de `aislamiento`. Sin comprobarlo, un patrón
+      # mal escrito habría corrido CERO tests dando BUILD SUCCESS — un verde vacío.
+      - name: Tests unitarios
+        run: ./mvnw -B -ntp test -Dtest='!**/aislamiento/**' -DfailIfNoTests=false
