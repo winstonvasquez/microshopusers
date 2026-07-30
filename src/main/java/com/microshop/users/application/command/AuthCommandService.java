@@ -5,6 +5,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.microshop.users.application.MessageHelper;
+import com.microshop.users.config.security.JwtClaims;
 import com.microshop.users.application.dto.LoginRequest;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.SocialLoginRequest;
@@ -140,19 +141,22 @@ public class AuthCommandService {
 
     private String generateJwtToken(UsuarioEntity user, Long companyId) {
         UserDetails userDetails = new User(user.getUsername(), user.getPassword(), Collections.emptyList());
+        // Los nombres de claim salen de JwtClaims, que es el contrato que leen los seis servicios.
+        // No poner literales aquí: esta ruta y la de SaasOnboardingCommandService ya habían divergido
+        // una vez (esta emitía `roles` y la otra no).
         Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("userId", user.getId());
+        extraClaims.put(JwtClaims.USER_ID, user.getId());
         // Authorities Spring Security: prefijo ROLE_ obligatorio para que los
         // @PreAuthorize("hasAuthority('ROLE_ADMIN')") o hasRole('ADMIN') de los
         // microservicios reconozcan el rol del usuario.
         if (user.getRol() != null && user.getRol().getNombre() != null) {
-            extraClaims.put("roles", List.of("ROLE_" + user.getRol().getNombre().toUpperCase()));
+            extraClaims.put(JwtClaims.ROLES, List.of("ROLE_" + user.getRol().getNombre().toUpperCase()));
         }
         if (companyId != null) {
-            extraClaims.put("companyId", companyId);
+            extraClaims.put(JwtClaims.COMPANY_ID, companyId);
             List<String> modules = saasQueryService.getEnabledModuleCodes(companyId);
             if (!modules.isEmpty()) {
-                extraClaims.put("modules", String.join(",", modules));
+                extraClaims.put(JwtClaims.MODULES, String.join(JwtClaims.MODULES_SEPARATOR, modules));
             }
         }
         return jwtService.generateToken(extraClaims, userDetails);
@@ -166,6 +170,9 @@ public class AuthCommandService {
         session.setFechaExpiracion(Instant.now().plus(1, ChronoUnit.DAYS));
         session.setValido(true);
         session.setCompanyId(companyId);
+        // jti: identificador de revocacion (M27). Sin el, invalidar una sesion concreta obligaba a
+        // comparar por igualdad el JWT completo (~800 caracteres) en cada consulta.
+        session.setJti(jwtService.extractJti(jwtToken));
         sesionRepository.save(session);
     }
 

@@ -1,5 +1,7 @@
 package com.microshop.users.application.command;
 
+import com.microshop.users.config.security.JwtClaims;
+
 import com.microshop.users.application.dto.SaasRegisterRequest;
 import com.microshop.users.application.dto.SaasRegisterResponse;
 import com.microshop.users.application.query.SaasQueryService;
@@ -100,13 +102,21 @@ public class SaasOnboardingCommandService {
                 .build();
         subscriptionRepository.save(subscription);
 
-        // 8. Generar JWT con módulos habilitados
+        // 8. Generar JWT con módulos habilitados.
+        //
+        // El claim `roles` NO se emitía aquí y sí en AuthCommandService: quien se registraba por este
+        // flujo recibía un token SIN roles, así que todo hasRole()/hasAuthority() le fallaba en los seis
+        // servicios hasta que volviera a iniciar sesión por la ruta normal. Las dos rutas de emisión
+        // habían divergido sin que nada lo detectara, que es la razón de ser de JwtClaims.
         List<String> enabledModules = saasQueryService.getEnabledModuleCodes(company.getId());
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", usuario.getId());
-        claims.put("companyId", company.getId());
+        claims.put(JwtClaims.USER_ID, usuario.getId());
+        claims.put(JwtClaims.COMPANY_ID, company.getId());
+        if (usuario.getRol() != null && usuario.getRol().getNombre() != null) {
+            claims.put(JwtClaims.ROLES, List.of("ROLE_" + usuario.getRol().getNombre().toUpperCase()));
+        }
         if (!enabledModules.isEmpty()) {
-            claims.put("modules", String.join(",", enabledModules));
+            claims.put(JwtClaims.MODULES, String.join(JwtClaims.MODULES_SEPARATOR, enabledModules));
         }
         var userDetails = new User(usuario.getUsername(), usuario.getPassword(), Collections.emptyList());
         String token = jwtService.generateToken(claims, userDetails);
@@ -118,6 +128,8 @@ public class SaasOnboardingCommandService {
                 .fechaInicio(Instant.now())
                 .fechaExpiracion(Instant.now().plus(1, ChronoUnit.DAYS))
                 .valido(true)
+                // jti: identificador de revocacion (M27), igual que en el login.
+                .jti(jwtService.extractJti(token))
                 .companyId(company.getId())
                 .build();
         sesionRepository.save(session);

@@ -27,10 +27,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    /**
+     * @Lazy rompe el ciclo de dependencias: SesionRevocacionService -> SesionRepository -> EntityManager,
+     * y este filtro se construye dentro de la cadena de seguridad, que Spring inicializa antes.
+     */
+    private final com.microshop.users.application.command.SesionRevocacionService sesionRevocacionService;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService,
+            @org.springframework.context.annotation.Lazy
+            com.microshop.users.application.command.SesionRevocacionService sesionRevocacionService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.sesionRevocacionService = sesionRevocacionService;
     }
 
     @Override
@@ -54,7 +62,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-                if (jwtService.isTokenValid(jwt, userDetails)) {
+                // M27: la firma y la expiración no bastan. Un token de una empresa suspendida (o de una
+                // sesión cerrada) sigue siendo criptográficamente válido hasta que caduca, así que
+                // suspender un tenant no cortaba a quien ya estuviera dentro — hasta 24 h operando con
+                // normalidad. Aquí se consulta la sesión, que es barata porque este servicio es dueño
+                // de la tabla. Un jti desconocido se deja pasar a propósito: las sesiones anteriores a
+                // V40 no lo tienen guardado, y la firma ya se validó, así que «desconocido» significa
+                // «token legítimo antiguo», no falsificación. Ver SesionRevocacionService.
+                if (jwtService.isTokenValid(jwt, userDetails)
+                        && !sesionRevocacionService.estaRevocado(jwtService.extractJti(jwt))) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null,
@@ -68,6 +84,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         if (userId != null) details.put("userId", userId);
                     } catch (Exception ignored) { }
                     authToken.setDetails(details);
+                    // M06: publica los modulos del plan en el request para que ModuloContratadoFilter
+                    // los lea sin volver a parsear el token. Se usa un atributo y no `Authentication`
+                    // porque los seis servicios pueblan Authentication de tres formas distintas y
+                    // ninguna incluia los modulos: el atributo es un canal uniforme que no obliga a
+                    // normalizar las tres a la vez (eso es D3). El nombre del claim es el del
+                    // contrato de microshopusers.config.security.JwtClaims.
+                    try {
+                        Object modulosCrudo = jwtService.extractClaim(jwt, c -> c.get("modules"));
+                        if (modulosCrudo != null) {
+                            request.setAttribute("microshop.modulosContratados",
+                                    java.util.Arrays.stream(modulosCrudo.toString().split(","))
+                                            .map(String::trim)
+                                            .filter(s -> !s.isEmpty())
+                                            .collect(java.util.stream.Collectors.toUnmodifiableSet()));
+                        }
+                    } catch (Exception ignoradoModulos) {
+                        // Un token sin el claim no es un error: ver la nota de ModuloContratadoFilter.
+                    }
+
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }

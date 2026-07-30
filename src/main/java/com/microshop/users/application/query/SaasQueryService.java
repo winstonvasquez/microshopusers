@@ -7,6 +7,7 @@ import com.microshop.users.application.mapper.CompanyMapper;
 import com.microshop.users.infrastructure.persistence.entity.*;
 import com.microshop.users.infrastructure.persistence.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -15,6 +16,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
+@Slf4j
 public class SaasQueryService {
 
     private final SaasModuleRepository moduleRepository;
@@ -26,7 +28,19 @@ public class SaasQueryService {
     /**
      * Devuelve la lista de códigos de módulo habilitados para una empresa.
      * Lógica: módulos del plan UNION overrides por empresa (enabled=true).
-     * Si no tiene suscripción, retorna todos los módulos como fallback para datos existentes.
+     *
+     * <p><b>Corregido el 2026-07-29 (M06).</b> Cuando la empresa no tenía suscripción, esto devolvía
+     * <b>todos los módulos activos</b> «como fallback para datos existentes». Es exactamente lo
+     * contrario de lo que un SaaS debe hacer: significaba que <b>un tenant sin plan contratado recibía
+     * el catálogo completo</b> — POS, ventas, compras, inventario, contabilidad, logística, tesorería y
+     * RRHH— en el claim del token. Medido en la base de desarrollo: de 7 empresas, solo 3 tenían
+     * suscripción, así que <b>4 estaban operando con acceso total sin plan</b>. Y como además ningún
+     * backend validaba el claim, el plan no restringía nada por ninguno de los dos lados.</p>
+     *
+     * <p>Ahora sin suscripción no hay módulos. El registro por el flujo SaaS y el alta de empresa
+     * crean una suscripción TRIAL, así que el caso «sin suscripción» pasa a ser lo que siempre debió
+     * ser: una anomalía de datos que se ve, no un permiso implícito. Se registra en el log para que se
+     * pueda encontrar en vez de quedar silenciosa.</p>
      */
     public List<String> getEnabledModuleCodes(Long companyId) {
         if (companyId == null) return List.of();
@@ -34,10 +48,13 @@ public class SaasQueryService {
         // Obtener módulos del plan vía suscripción
         List<String> planModules = subscriptionRepository.findEnabledModuleCodesByCompanyId(companyId);
 
-        // Sin suscripción: retornar todos los módulos activos como fallback
         if (planModules.isEmpty()) {
-            return moduleRepository.findAllByIsActiveTrueOrderBySortOrderAsc()
-                    .stream().map(SaasModuleEntity::getCode).collect(Collectors.toList());
+            // Fail-closed. Antes se devolvían TODOS los módulos aquí; ver la nota del javadoc.
+            log.warn("La empresa {} no tiene suscripcion con modulos: se emite el token SIN modulos "
+                    + "habilitados. Si deberia poder operar, hay que darle una suscripcion "
+                    + "(POST /users/api/saas/subscriptions) — antes esto le concedia el catalogo completo.",
+                    companyId);
+            return List.of();
         }
 
         // Aplicar overrides por empresa

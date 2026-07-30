@@ -42,6 +42,15 @@ public class JwtService {
         this.jwtExpiration = jwtProperties.expiration();
     }
 
+    /**
+     * Devuelve el {@code jti} del token, que es la clave por la que se revoca una sesión (M27).
+     * Se expone aquí y no se lee con {@code extractClaim(t, Claims::getId)} en cada llamador para que
+     * el nombre del claim viva en un solo sitio — ver {@link JwtClaims}.
+     */
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
+    }
+
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }

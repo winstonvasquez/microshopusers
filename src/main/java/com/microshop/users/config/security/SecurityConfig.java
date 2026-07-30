@@ -56,6 +56,8 @@ public class SecurityConfig {
         }
 
         private final JwtAuthenticationFilter jwtAuthFilter;
+
+        private final ModuloContratadoFilter moduloContratadoFilter;
         private final InternalServiceAuthenticationFilter internalServiceAuthFilter;
         private final UserDetailsService userDetailsService;
 
@@ -144,7 +146,11 @@ public class SecurityConfig {
                                 // Es lo que dejaba el KPI de RRHH del dashboard ejecutivo en cero
                                 // para todos los tenants.
                                 .addFilterBefore(internalServiceAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // DESPUES del filtro JWT a proposito: necesita el SecurityContext poblado para
+                // distinguir una llamada s2s de una de usuario, y el atributo de request con los
+                // modulos que ese filtro publica.
+                .addFilterAfter(moduloContratadoFilter, JwtAuthenticationFilter.class);
 
                 return http.build();
         }

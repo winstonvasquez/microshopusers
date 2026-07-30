@@ -61,6 +61,15 @@ public class SesionEntity extends AuditEntity {
     @Comment("Usuario propietario de la sesión")
     private UsuarioEntity usuario;
 
+    /**
+     * Claim {@code jti} del JWT de esta sesión. Identificador de revocación (M27).
+     *
+     * <p>Nullable a propósito: las sesiones creadas antes de V40 no lo tienen y no hay valor que
+     * inventar. Esas no se pueden revocar individualmente y expiran solas en 24 h.</p>
+     */
+    @Column(name = "jti", length = 36)
+    private String jti;
+
     @Column(name = "company_id")
     @Comment("ID de la empresa activa en esta sesión (contexto)")
     private Long companyId;
