@@ -187,6 +187,16 @@ public class AuthCommandService {
      * Valida que el usuario pertenezca a la empresa destino.
      */
     public LoginResponse switchCompany(String username, Long targetCompanyId) {
+        // Guarda propia del servicio, además de la validación del DTO en el controller. No es
+        // redundancia decorativa: validateCompanyMembership() empieza con
+        // `if (companyId == null) return;` —correcto para el LOGIN, donde determineCompanyId() ya
+        // eligió la primera empresa del usuario, y donde un usuario sin ninguna empresa debe poder
+        // obtener token—, pero en el cambio de empresa el valor llega crudo del cliente y ese
+        // early-return lo dejaba pasar hasta generateJwtToken(user, null), emitiendo un JWT sin
+        // claim companyId ni modules. Cualquier futuro llamador de este método queda cubierto aquí.
+        if (targetCompanyId == null || targetCompanyId <= 0L) {
+            throw new BusinessException(msg.get("auth.user.company.mismatch"));
+        }
         var user = getUser(username);
         var userCompanies = getUserCompanies(user.getId());
         validateCompanyMembership(targetCompanyId, userCompanies);

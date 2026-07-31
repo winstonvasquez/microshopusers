@@ -2,6 +2,7 @@ package com.microshop.users.application.mapper;
 
 import com.microshop.users.application.dto.SegmentoRequestDto;
 import com.microshop.users.application.dto.SegmentoResponseDto;
+import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.infrastructure.persistence.entity.SegmentoEntity;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,8 @@ public class SegmentoMapper {
                 .descripcion(dto.descripcion())
                 .color(dto.color())
                 .tipoCliente(dto.tipoCliente())
+                // companyId del JWT autenticado (null solo si SUPERADMIN sin claim -> visible para todas).
+                .companyId(SecurityContextUtils.currentCompanyId())
                 .build();
         entity.setActivo(dto.activo());
         return entity;

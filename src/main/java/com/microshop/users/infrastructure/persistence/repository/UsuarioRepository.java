@@ -32,7 +32,10 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
     boolean existsByPersonaNumeroDocumento(String numeroDocumento);
 
-    java.util.List<UsuarioEntity> findByRolId(Long rolId);
+    // findByRolId(Long) se eliminó: derivado de Spring Data, traducía a "WHERE rol_id = ?" sin
+    // acotar por empresa y era el origen de una fuga de PII cross-tenant en /api/users/by-rol/{id}.
+    // Para filtrar por rol usar findByCompanyIdFiltered(companyId, ..., rolId, ...), que respeta
+    // la tabla de membresías user_company.
 
     Page<UsuarioSummary> findProjectedBy(Pageable pageable);
 

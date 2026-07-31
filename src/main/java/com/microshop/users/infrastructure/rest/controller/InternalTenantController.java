@@ -63,6 +63,27 @@ public class InternalTenantController {
 
     private final CompanyRepository companyRepository;
     private final SesionRevocacionService sesionRevocacionService;
+    private final com.microshop.users.application.query.UserCompanyQueryService userCompanyQueryService;
+
+    /**
+     * Usuarios de una empresa con rol de administración, para que otro servicio pueda dirigirle una
+     * notificación operativa <b>a esa empresa</b> y no a un destinatario adivinado.
+     *
+     * <p>Existe por un fallo concreto: el evaluador de alertas de stock de logística iteraba TODOS los
+     * tenants y mandaba el detalle de inventario crítico de cada uno a un {@code userId} HARDCODEADO
+     * (el 1, que sólo es miembro de dos de las seis empresas). O sea entregaba a un usuario el
+     * inventario de empresas a las que no pertenece. Al quitar el hardcode la alerta quedó sin
+     * destinatario y por tanto apagada; este endpoint es lo que la vuelve a encender <b>bien</b>.</p>
+     *
+     * <p>Devuelve sólo miembros ACTIVOS con rol ADMIN o SUPERADMIN de esa empresa. Lista vacía si la
+     * empresa no tiene ninguno: el consumidor debe entonces NO notificar, nunca caer a un default.</p>
+     */
+    @GetMapping("/companies/{companyId}/admin-user-ids")
+    public ResponseEntity<List<Long>> adminsDeEmpresa(@PathVariable Long companyId) {
+        List<Long> ids = userCompanyQueryService.adminUserIdsDeEmpresa(companyId);
+        log.debug("GET /api/internal/companies/{}/admin-user-ids -> {} destinatario(s)", companyId, ids.size());
+        return ResponseEntity.ok(ids);
+    }
 
     /**
      * Maestro de tenants. <b>Fuente de verdad</b> de la identidad de empresa del ERP.

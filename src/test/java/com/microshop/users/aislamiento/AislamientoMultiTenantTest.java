@@ -335,10 +335,95 @@ class AislamientoMultiTenantTest {
                 .isEqualTo(igvOriginal);
     }
 
+    // ------------------------------------------- ronda de tenancy 2026-07-29
+
+    @Test
+    @Order(11)
+    @DisplayName("segmentos: el listado de A no incluye el de B, y A no puede editar el de B")
+    void segmentosAcotadosPorEmpresa() throws Exception {
+        // El módulo de Segmentos de cliente TENÍA la columna company_id y la ignoraba por completo:
+        // el mapper no la poblaba al crear y ninguna query la filtraba, así que los 7 endpoints
+        // (listado, detalle, export, alta, edición, baja) operaban sobre los segmentos de todas las
+        // empresas. Un ADMIN de A listaba, editaba y borraba los de B.
+        //
+        // Se crea un segmento REAL en cada empresa: con la tabla vacía, un findAll() sin acotar
+        // también devolvería [] y el caso pasaría por vacuidad — el mismo cuidado que el fixture de
+        // vendedores de esta clase.
+        long segmentoA = crearSegmento(a, "ZZTEST Segmento A", "#a1a1a1");
+        long segmentoB = crearSegmento(b, "ZZTEST Segmento B", "#b2b2b2");
+
+        // 1) El listado de A trae el suyo y NO el de B.
+        MvcResult listado = mockMvc.perform(get("/users/api/segments")
+                        .header("Authorization", "Bearer " + a.token()))
+                .andReturn();
+        String cuerpo = listado.getResponse().getContentAsString();
+
+        assertThat(listado.getResponse().getStatus())
+                .as("el listado propio debe seguir funcionando. Cuerpo: %s", cuerpo)
+                .isEqualTo(200);
+        assertThat(cuerpo)
+                .as("el segmento de A sí debe estar (si no, el caso sería vacuo). Cuerpo: %s", cuerpo)
+                .contains("ZZTEST Segmento A");
+        assertThat(cuerpo)
+                .as("el segmento de la otra empresa NO puede aparecer. Cuerpo: %s", cuerpo)
+                .doesNotContain("ZZTEST Segmento B");
+
+        // 2) A no puede editar el de B: se comprueba en la BASE, no por el código de respuesta.
+        String nombreOriginalB = jdbc.queryForObject(
+                "select nombre from dbshopusuarios.segmento where id = ?", String.class, segmentoB);
+
+        mockMvc.perform(put("/users/api/segments/" + segmentoB)
+                .header("Authorization", "Bearer " + a.token())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nombre\":\"SECUESTRADO POR A\",\"color\":\"#ffffff\","
+                        + "\"tipoCliente\":\"PERSONA_NATURAL\",\"activo\":true}"));
+
+        assertThat(jdbc.queryForObject(
+                "select nombre from dbshopusuarios.segmento where id = ?", String.class, segmentoB))
+                .as("el segmento de otra empresa es intocable")
+                .isEqualTo(nombreOriginalB);
+
+        // 3) Y el alta debe haber poblado company_id: si naciera NULL, sería visible para todas las
+        //    empresas (el listado admite las filas globales) y devolvería 404 al abrirlo — la
+        //    "fila fantasma" que la revisión adversarial señaló.
+        assertThat(jdbc.queryForObject(
+                "select company_id from dbshopusuarios.segmento where id = ?", Long.class, segmentoA))
+                .as("el segmento creado debe quedar atribuido a la empresa del creador, nunca NULL")
+                .isEqualTo(a.companyId());
+    }
+
+    /** Crea un segmento vía API dentro de la empresa del tenant y devuelve su id. */
+    private long crearSegmento(Tenant t, String nombre, String color) throws Exception {
+        MvcResult res = mockMvc.perform(post("/users/api/segments")
+                        .header("Authorization", "Bearer " + t.token())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        // Payload COMPLETO a propósito: SegmentoRequestDto exige tipoCliente y
+                        // declara `activo` como boolean PRIMITIVO, así que omitirlo hace que Jackson
+                        // falle al mapear null y el alta responda 500 en vez de 400. (Ese 500 es un
+                        // defecto de robustez del DTO —un primitivo en un request sin default— pero
+                        // queda fuera del alcance de este test de aislamiento; anotado como tal.)
+                        .content(("{\"nombre\":\"%s\",\"color\":\"%s\","
+                                + "\"tipoCliente\":\"PERSONA_NATURAL\",\"activo\":true}")
+                                .formatted(nombre, color)))
+                .andReturn();
+
+        assertThat(res.getResponse().getStatus())
+                .as("el alta de segmento debe funcionar dentro de la propia empresa. Cuerpo: %s",
+                        res.getResponse().getContentAsString())
+                .isIn(200, 201);
+
+        return objectMapper.readTree(res.getResponse().getContentAsString()).path("id").asLong();
+    }
+
     // ---------------------------------------------------------------- limpieza
 
     @AfterAll
     void limpiarDatosDePrueba() {
+        // Segmentos: se localizan por el marcador del nombre y NO por company_id, porque el caso
+        // comprueba precisamente que la columna se pueble — si una regresión la dejara NULL, filtrar
+        // por empresa no los encontraría y quedarían visibles para todos los tenants.
+        jdbc.update("delete from dbshopusuarios.segmento where nombre like 'ZZTEST %'");
+
         // Orden impuesto por las claves foráneas hacia usuario/persona/company.
         // Se localiza por username y RUC de prueba (no por los ids capturados) para que la
         // limpieza funcione aunque un test destructivo haya alterado el estado.

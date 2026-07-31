@@ -90,6 +90,17 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.PUT, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
                                                 .requestMatchers(HttpMethod.POST, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
                                                 .requestMatchers(HttpMethod.DELETE, "/users/api/system/parameters/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
+                                                // B-U-company-create (2026-07-29): crear una empresa NUEVA es dar de
+                                                // alta un tenant en la plataforma, no una operacion de un ADMIN sobre
+                                                // SU propia empresa. El alta self-service del SaaS NO pasa por aqui:
+                                                // usa POST /users/api/saas/register (permitAll, ver mas abajo),
+                                                // resuelto por SaasOnboardingCommandService. Este POST es solo la
+                                                // herramienta de plataforma que consume el panel admin
+                                                // (company.service.ts -> create()), asi que sin este matcher
+                                                // especifico (mas especifico, va ANTES) un ADMIN de cualquier
+                                                // empresa podia crear tenants arbitrarios via el matcher generico
+                                                // de abajo (hasAnyRole ADMIN, SUPERADMIN).
+                                                .requestMatchers(HttpMethod.POST, "/users/api/companies").hasRole(AppConstants.Seguridad.SUPERADMIN)
                                                 // GET incluido: /companies (list/paged/export/{id}) NO tenia
                                                 // ninguna proteccion (caia al permitAll de abajo) — cualquiera,
                                                 // sin login, podia listar TODAS las empresas. Unico consumidor

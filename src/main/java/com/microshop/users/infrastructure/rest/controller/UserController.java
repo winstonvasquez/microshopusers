@@ -7,6 +7,7 @@ import com.microshop.users.application.query.UserQueryService;
 import com.microshop.users.application.dto.ChangePasswordRequest;
 import com.microshop.users.application.dto.ChangeRoleRequest;
 import com.microshop.users.application.dto.LoginResponse;
+import com.microshop.users.application.dto.SwitchCompanyRequest;
 import com.microshop.users.application.dto.UserExportRowDto;
 import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
@@ -237,10 +238,19 @@ public class UserController {
     }
 
     @GetMapping("/by-rol/{rolId}")
-    @Operation(summary = "Obtener usuarios por rol")
+    @Operation(summary = "Obtener usuarios por rol (acotado a la empresa del caller)")
     public ResponseEntity<List<UserResponseDto>> getUsersByRol(@PathVariable @NonNull Long rolId) {
         log.info("GET /api/users/by-rol/{} - Obteniendo usuarios por rol", rolId);
-        List<UserResponseDto> users = userQueryService.findByRol(rolId);
+        // Este era el ÚNICO listado del controller que se saltaba resolveTenantScope(): iba a
+        // UsuarioRepository.findByRolId(rolId), un derivado de Spring Data que traduce a
+        // "WHERE rol_id = ?" y nada más, así que cualquier autenticado (ni siquiera ADMIN, el
+        // endpoint cae en anyRequest().authenticated()) obtenía la PII de los usuarios de TODAS
+        // las empresas. Se reencamina al mismo findAll acotado que usan getAllUsers y el export,
+        // que filtra por la tabla de membresías user_company. El camino sin acotar se eliminó de
+        // UserQueryService/UsuarioRepository para que no vuelva a usarse por descuido.
+        List<UserResponseDto> users = userQueryService
+                .findAll(Pageable.unpaged(), resolveTenantScope(), null, rolId, null, null, null, null)
+                .getContent();
         return ResponseEntity.ok(users);
     }
 
@@ -269,8 +279,12 @@ public class UserController {
                description = "Genera un nuevo JWT con la empresa destino. Requiere autenticación.")
     public ResponseEntity<LoginResponse> switchCompany(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody Map<String, Long> body) {
-        Long targetCompanyId = body.get("targetCompanyId");
+            @RequestBody @Valid SwitchCompanyRequest request) {
+        // Antes esto era un Map<String, Long> con body.get("targetCompanyId"): una clave ausente o
+        // mal escrita daba null, y el null atravesaba toda la validación hasta emitir un JWT SIN
+        // claim companyId ni modules (200, no 400) — una sesión sin tenant, que es a la vez fuga y
+        // rotura. Ver el javadoc de SwitchCompanyRequest.
+        Long targetCompanyId = request.targetCompanyId();
         log.info("POST /api/users/me/companies/switch - Cambiando a empresa {} para: {}", targetCompanyId, userDetails.getUsername());
         LoginResponse response = authCommandService.switchCompany(userDetails.getUsername(), targetCompanyId);
         return ResponseEntity.ok(response);

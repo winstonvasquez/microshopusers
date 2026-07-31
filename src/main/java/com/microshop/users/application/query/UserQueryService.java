@@ -82,13 +82,9 @@ public class UserQueryService {
                 .map(userMapper::toDto);
     }
 
-    @Transactional(readOnly = true)
-    public List<UserResponseDto> findByRol(Long rolId) {
-        log.debug("Fetching users by role: {}", rolId);
-        return usuarioRepository.findByRolId(rolId).stream()
-                .map(userMapper::toDto)
-                .collect(Collectors.toList());
-    }
+    // findByRol(Long) se eliminó: era el único camino de listado sin acotar por empresa y dejaba
+    // GET /api/users/by-rol/{rolId} filtrando PII cross-tenant. Su llamador (UserController) usa
+    // ahora findAll(...) con resolveTenantScope() y el filtro rolId, que respeta las membresías.
 
     /**
      * Obtiene todos los usuarios con los campos que necesita el reporte de
