@@ -95,7 +95,7 @@ public class SegmentoController {
                 .map(s -> List.<Object>of(
                         valorOVacio(s.nombre()),
                         valorOVacio(s.tipoCliente()),
-                        valorOVacio(s.descripcion()),
+                        valorOVacio(SpreadsheetExporter.plano(s.descripcion())),
                         s.totalClientes() != null ? s.totalClientes() : 0,
                         s.activo() ? "Activo" : "Inactivo"))
                 .collect(Collectors.toList());

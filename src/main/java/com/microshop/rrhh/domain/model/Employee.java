@@ -95,7 +95,7 @@ public class Employee {
     @Comment("Fecha de salida de la empresa")
     private LocalDate fechaSalida;
 
-    @Column(name = "motivo_salida", length = 500)
+    @Column(name = "motivo_salida", columnDefinition = "TEXT")
     @Comment("Motivo de salida")
     private String motivoSalida;
 

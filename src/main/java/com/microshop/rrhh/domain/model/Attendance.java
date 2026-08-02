@@ -79,7 +79,7 @@ public class Attendance {
     @Builder.Default
     private AttendanceType tipoRegistro = AttendanceType.NORMAL;
 
-    @Column(name = "observaciones", length = 500)
+    @Column(name = "observaciones", columnDefinition = "TEXT")
     @Comment("Observaciones adicionales")
     private String observaciones;
 

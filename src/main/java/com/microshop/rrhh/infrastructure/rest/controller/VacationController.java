@@ -106,7 +106,7 @@ public class VacationController {
                         v.fechaInicio() != null ? v.fechaInicio().format(formatoFecha) : "",
                         v.fechaFin() != null ? v.fechaFin().format(formatoFecha) : "",
                         v.dias() != null ? v.dias() : 0,
-                        valorOVacio(v.motivo()),
+                        valorOVacio(SpreadsheetExporter.plano(v.motivo())),
                         v.estado() != null ? v.estado().name() : ""))
                 .collect(Collectors.toList());
 

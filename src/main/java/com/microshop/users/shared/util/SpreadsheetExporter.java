@@ -16,6 +16,8 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import org.springframework.web.util.HtmlUtils;
+
 /**
  * Utilidad compartida para exportar listados a XLSX y CSV con datos limpios
  * (sin markup HTML). Reemplaza el patrón de "scrapear la tabla del frontend"
@@ -151,6 +153,20 @@ public final class SpreadsheetExporter {
             sb.append(escapeCsv(valores.get(i)));
         }
         sb.append("\r\n");
+    }
+
+    /**
+     * Quita el markup HTML de un valor guardado por el editor de texto enriquecido
+     * del frontend (negritas, listas, párrafos, etc.), dejando texto plano apto para
+     * una celda de hoja de cálculo. Null-safe: devuelve cadena vacía si {@code html} es null.
+     */
+    public static String plano(String html) {
+        if (html == null) {
+            return "";
+        }
+        String sinEtiquetas = html.replaceAll("<[^>]*>", " ");
+        String sinEntidades = HtmlUtils.htmlUnescape(sinEtiquetas);
+        return sinEntidades.replaceAll("\\s+", " ").trim();
     }
 
     /** Escapa un valor para CSV: comillas dobles alrededor, duplicando las internas. */

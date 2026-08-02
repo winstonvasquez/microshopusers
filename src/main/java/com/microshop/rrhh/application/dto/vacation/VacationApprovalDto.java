@@ -9,6 +9,7 @@ public record VacationApprovalDto(
     @NotNull(message = "{vacation.approval.approved.required}")
     Boolean approved,
 
-    @Size(max = 500, message = "{vacation.approval.comentarios.size}")
+    // El valor viaja como HTML del editor de texto enriquecido del frontend.
+    @Size(max = 4000, message = "{vacation.approval.comentarios.size}")
     String comentarios
 ) {}

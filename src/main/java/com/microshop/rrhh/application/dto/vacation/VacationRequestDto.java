@@ -20,7 +20,8 @@ public record VacationRequestDto(
     @Min(value = 1, message = "{vacation.dias.min}")
     Integer dias,
 
-    @Size(max = 500, message = "{vacation.motivo.size}")
+    // El valor viaja como HTML del editor de texto enriquecido del frontend.
+    @Size(max = 4000, message = "{vacation.motivo.size}")
     String motivo,
 
     // Opcional: si el cliente no lo envía, el mapper aplica el default ANUAL del dominio.

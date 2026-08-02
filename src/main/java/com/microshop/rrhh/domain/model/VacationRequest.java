@@ -78,7 +78,7 @@ public class VacationRequest {
     @Builder.Default
     private VacationStatus estado = VacationStatus.SOLICITADO;
 
-    @Column(name = "motivo", length = 500)
+    @Column(name = "motivo", columnDefinition = "TEXT")
     @Comment("Motivo de las vacaciones")
     private String motivo;
 
@@ -91,7 +91,7 @@ public class VacationRequest {
     @Comment("Fecha de aprobación/rechazo")
     private LocalDate fechaAprobacion;
 
-    @Column(name = "comentarios_aprobacion", length = 500)
+    @Column(name = "comentarios_aprobacion", columnDefinition = "TEXT")
     @Comment("Comentarios de aprobación/rechazo")
     private String comentariosAprobacion;
 

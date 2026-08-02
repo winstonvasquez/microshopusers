@@ -126,7 +126,7 @@ public class AttendanceController {
                         a.horaEntrada() != null ? a.horaEntrada().toString() : "—",
                         a.horaSalida() != null ? a.horaSalida().toString() : "—",
                         a.tipoRegistro() != null ? a.tipoRegistro().name() : "",
-                        a.observaciones() != null ? a.observaciones() : "—"))
+                        a.observaciones() != null ? SpreadsheetExporter.plano(a.observaciones()) : "—"))
                 .collect(Collectors.toList());
 
         byte[] bytes;
