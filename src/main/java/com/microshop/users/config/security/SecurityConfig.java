@@ -134,6 +134,12 @@ public class SecurityConfig {
                                                                 "/users/api/auth/**",
                                                                 "/users/api/saas/**",
                                                                 "/users/api/system/parameters/**",
+                                                                // Ubigeo INEI: data maestra nacional de solo lectura, sin
+                                                                // dueño ni tenant. Va en permitAll porque el checkout de un
+                                                                // comprador INVITADO necesita elegir departamento/provincia/
+                                                                // distrito antes de tener sesión. No expone nada de ninguna
+                                                                // empresa: es la división política del país.
+                                                                "/users/api/ubigeo/**",
                                                                 "/users/api/internal/**",
                                                                 "/actuator/**",
                                                                 "/swagger-ui/**",

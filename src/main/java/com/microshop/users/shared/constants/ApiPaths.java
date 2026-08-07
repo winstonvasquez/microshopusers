@@ -22,4 +22,5 @@ public final class ApiPaths {
     public static final String THEMES              = BASE + "/themes";
     public static final String CLIENTE_DIRECCIONES = BASE + "/clientes/me/direcciones";
     public static final String SEGMENTS            = BASE + "/segments";
+    public static final String UBIGEO              = BASE + "/ubigeo";
 }
