@@ -7,6 +7,7 @@ import com.microshop.users.infrastructure.persistence.repository.UserCompanyRepo
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import com.microshop.users.infrastructure.persistence.repository.VendedorRepository;
 import com.microshop.users.application.dto.VendedorRequestDto;
+import com.microshop.users.application.mapper.VendedorMapper;
 import com.microshop.users.application.dto.VendedorResponseDto;
 import com.microshop.users.shared.exception.BusinessException;
 import com.microshop.users.shared.exception.ConflictException;
@@ -26,6 +27,7 @@ public class VendedorCommandService {
     private final UsuarioRepository usuarioRepository;
     private final UserCompanyRepository userCompanyRepository;
     private final MessageSource messageSource;
+    private final VendedorMapper vendedorMapper;
 
     /**
      * Registra un perfil de vendedor. {@code companyIdDelLlamante} es el tenant del solicitante y
@@ -58,7 +60,7 @@ public class VendedorCommandService {
                 .build();
 
         VendedorEntity saved = vendedorRepository.save(vendedor);
-        return mapToDto(saved);
+        return vendedorMapper.mapToDto(saved);
     }
 
     /**
@@ -89,18 +91,6 @@ public class VendedorCommandService {
                         : vendedorRepository.findByIdAndCompanyId(id, companyId))
                 .orElseThrow(() -> new NotFoundException(messageSource.getMessage("vendedor.not.found", null, null)));
         vendedor.setEstadoAprobacion(status);
-        return mapToDto(vendedorRepository.save(vendedor));
-    }
-
-    private VendedorResponseDto mapToDto(VendedorEntity entity) {
-        return VendedorResponseDto.builder()
-                .id(entity.getId())
-                .dniRuc(entity.getDniRuc())
-                .telefonoContacto(entity.getTelefonoContacto())
-                .estadoAprobacion(entity.getEstadoAprobacion())
-                .usuarioId(entity.getUsuario().getId())
-                .username(entity.getUsuario().getUsername())
-                .email(entity.getUsuario().getEmail())
-                .build();
+        return vendedorMapper.mapToDto(vendedorRepository.save(vendedor));
     }
 }

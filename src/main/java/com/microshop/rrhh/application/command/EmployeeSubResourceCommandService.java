@@ -2,11 +2,11 @@ package com.microshop.rrhh.application.command;
 
 import com.microshop.users.application.MessageHelper;
 import com.microshop.rrhh.application.dto.employee.*;
+import com.microshop.rrhh.application.mapper.EmployeeSubResourceMapper;
 import com.microshop.rrhh.config.security.TenantContext;
 import com.microshop.rrhh.domain.model.*;
 import com.microshop.rrhh.infrastructure.persistence.repository.*;
 import com.microshop.users.shared.exception.NotFoundException;
-import com.microshop.users.shared.util.AppUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +28,7 @@ public class EmployeeSubResourceCommandService {
     private final SalaryRepository salaryRepository;
     private final TenantContext tenantContext;
     private final MessageHelper msg;
+    private final EmployeeSubResourceMapper mapper;
 
     // ── Emergency Contacts ────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ public class EmployeeSubResourceCommandService {
 
         EmergencyContact saved = emergencyContactRepository.save(entity);
         log.info("Contacto emergencia creado: {} para empleado {} - Tenant: {}", saved.getId(), employeeId, tenantId);
-        return toEmergencyContactDto(saved);
+        return mapper.toEmergencyContactDto(saved);
     }
 
     public EmergencyContactDto.Response updateEmergencyContact(Long id, @Valid EmergencyContactDto.Request request) {
@@ -64,7 +65,7 @@ public class EmployeeSubResourceCommandService {
         if (request.esPrincipal() != null) entity.setEsPrincipal(request.esPrincipal());
 
         EmergencyContact updated = emergencyContactRepository.save(entity);
-        return toEmergencyContactDto(updated);
+        return mapper.toEmergencyContactDto(updated);
     }
 
     public void deleteEmergencyContact(Long id) {
@@ -94,7 +95,7 @@ public class EmployeeSubResourceCommandService {
 
         Dependent saved = dependentRepository.save(entity);
         log.info("Dependiente creado: {} para empleado {} - Tenant: {}", saved.getId(), employeeId, tenantId);
-        return toDependentDto(saved);
+        return mapper.toDependentDto(saved);
     }
 
     public DependentDto.Response updateDependent(Long id, @Valid DependentDto.Request request) {
@@ -111,7 +112,7 @@ public class EmployeeSubResourceCommandService {
         if (request.esCargaFamiliar() != null) entity.setEsCargaFamiliar(request.esCargaFamiliar());
 
         Dependent updated = dependentRepository.save(entity);
-        return toDependentDto(updated);
+        return mapper.toDependentDto(updated);
     }
 
     public void deleteDependent(Long id) {
@@ -140,7 +141,7 @@ public class EmployeeSubResourceCommandService {
 
         Document saved = documentRepository.save(entity);
         log.info("Documento creado: {} para empleado {} - Tenant: {}", saved.getId(), employeeId, tenantId);
-        return toDocumentDto(saved);
+        return mapper.toDocumentDto(saved);
     }
 
     public DocumentDto.Response updateDocument(Long id, @Valid DocumentDto.Request request) {
@@ -156,7 +157,7 @@ public class EmployeeSubResourceCommandService {
         entity.setFechaVencimiento(request.fechaVencimiento());
 
         Document updated = documentRepository.save(entity);
-        return toDocumentDto(updated);
+        return mapper.toDocumentDto(updated);
     }
 
     public void deleteDocument(Long id) {
@@ -192,7 +193,7 @@ public class EmployeeSubResourceCommandService {
 
         Salary saved = salaryRepository.save(entity);
         log.info("Registro salarial creado: {} para empleado {} - Tenant: {}", saved.getId(), employeeId, tenantId);
-        return toSalaryDto(saved);
+        return mapper.toSalaryDto(saved);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -200,69 +201,5 @@ public class EmployeeSubResourceCommandService {
     private Employee findEmployee(Long employeeId, Long tenantId) {
         return employeeRepository.findByIdAndTenantId(employeeId, tenantId)
                 .orElseThrow(() -> new NotFoundException(msg.get("employee.not.found")));
-    }
-
-    private EmergencyContactDto.Response toEmergencyContactDto(EmergencyContact e) {
-        return EmergencyContactDto.Response.builder()
-                .id(e.getId())
-                .employeeId(e.getEmployee().getId())
-                .nombreCompleto(e.getNombreCompleto())
-                .relacion(e.getRelacion())
-                .telefono(e.getTelefono())
-                .telefonoAlternativo(e.getTelefonoAlternativo())
-                .direccion(e.getDireccion())
-                .esPrincipal(e.getEsPrincipal())
-                .createdAt(e.getCreatedAt())
-                .updatedAt(e.getUpdatedAt())
-                .build();
-    }
-
-    private DependentDto.Response toDependentDto(Dependent d) {
-        return DependentDto.Response.builder()
-                .id(d.getId())
-                .employeeId(d.getEmployee().getId())
-                .nombreCompleto(d.getNombreCompleto())
-                .relacion(d.getRelacion())
-                .fechaNacimiento(d.getFechaNacimiento())
-                .documentoIdentidad(d.getDocumentoIdentidad())
-                .genero(d.getGenero())
-                .esBeneficiarioSeguro(d.getEsBeneficiarioSeguro())
-                .esCargaFamiliar(d.getEsCargaFamiliar())
-                .createdAt(d.getCreatedAt())
-                .updatedAt(d.getUpdatedAt())
-                .build();
-    }
-
-    private DocumentDto.Response toDocumentDto(Document doc) {
-        return DocumentDto.Response.builder()
-                .id(doc.getId())
-                .employeeId(doc.getEmployee().getId())
-                .tipoDocumento(doc.getTipoDocumento())
-                .nombreArchivo(doc.getNombreArchivo())
-                .descripcion(doc.getDescripcion())
-                .urlArchivo(doc.getUrlArchivo())
-                .fechaEmision(doc.getFechaEmision())
-                .fechaVencimiento(doc.getFechaVencimiento())
-                .estado(doc.getEstado())
-                .createdAt(doc.getCreatedAt())
-                .updatedAt(doc.getUpdatedAt())
-                .build();
-    }
-
-    private SalaryDto.Response toSalaryDto(Salary s) {
-        Employee approver = s.getAprobadoPor();
-        return SalaryDto.Response.builder()
-                .id(s.getId())
-                .employeeId(s.getEmployee().getId())
-                .fechaInicio(s.getFechaInicio())
-                .fechaFin(s.getFechaFin())
-                .salarioBase(s.getSalarioBase())
-                .moneda(s.getMoneda())
-                .motivo(s.getMotivo())
-                .porcentajeIncremento(s.getPorcentajeIncremento())
-                .aprobadoPorId(AppUtils.idOrNull(approver, e -> e.getId()))
-                .aprobadoPorName(approver != null ? AppUtils.fullName(approver.getNombres(), approver.getApellidos()) : null)
-                .createdAt(s.getCreatedAt())
-                .build();
     }
 }

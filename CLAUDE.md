@@ -37,7 +37,7 @@
 
 ## Migraciones Flyway
 
-### Schema `dbshopusuarios` — última: V19
+### Schema `dbshopusuarios` — última: V44  ·  medido 2026-08-06
 
 | Versión | Contenido |
 |---|---|
@@ -58,8 +58,12 @@
 | V17 | Company theme config |
 | V18 | User theme preferences |
 | V19 | ERP parameters editables |
+| V20–V40 | POS PIN, seeds de catálogos, landing, logo binario, sesión/JTI, suscripción por dominio |
+| V41 | Catálogos SUNAT reales (unidades cat. 03, documentos cat. 06, comprobantes cat. 01) + segmentos |
+| V42 | **Tabla `ubigeo`: 25 departamentos / 196 provincias / 1874 distritos del INEI.** Data maestra NACIONAL, sin `tenant_id`. Sirve los tres selects encadenados de dirección y aporta el código de 6 dígitos que SUNAT exige en la guía de remisión. Desnormalizada a propósito (los tres nombres en cada fila) para resolver cada nivel con un `DISTINCT` sin joins. `UbigeoController` está declarado EXENTO en el gate de tenancy con motivo verificado |
+| V43 | Desactiva `CATALOGO.UBIGEO_DEPARTAMENTO.*` de `erp_parameters`: tras la V42 era una segunda fuente del mismo maestro y con **códigos incompatibles** (`'AMAZONAS'` vs `'01'`). Se comprobó 0 consumidores en los 6 backends y en app-shop antes de retirarlo; se desactiva en vez de borrarse porque `getCatalog` ya filtra por `is_active` |
 
-### Schema `dbshoprrhh` — última: V5
+### Schema `dbshoprrhh` — última: V12  ·  medido 2026-08-06 (la cabecera decía V5: 7 de desfase)
 
 | Versión | Contenido |
 |---|---|
@@ -92,6 +96,6 @@ cd microshopusers
 ./mvnw compile -q          # Verificar compilación
 ./mvnw spring-boot:run     # Arrancar (port 8080)
 ./mvnw test                # Tests
-ls src/main/resources/db/migration/usuarios/ | sort | tail -3  # Última migración usuarios (V19)
-ls src/main/resources/db/migration/rrhh/ | sort | tail -3      # Última migración rrhh (V5)
+ls src/main/resources/db/migration/usuarios/ | sort -V | tail -3  # usuarios (V44 el 2026-08-06)  # ojo: `sort -V`, no `sort` (V9 va DESPUES de V43 lexicograficamente)
+ls src/main/resources/db/migration/rrhh/ | sort -V | tail -3      # rrhh (V12 el 2026-08-06)
 ```

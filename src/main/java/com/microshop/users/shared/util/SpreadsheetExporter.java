@@ -41,68 +41,78 @@ public final class SpreadsheetExporter {
     public static byte[] toXlsx(String titulo, List<String> cabeceras, List<List<Object>> filas) {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Datos");
-
             int numCols = cabeceras != null ? cabeceras.size() : 0;
 
-            // Estilo del título: negrita, tamaño mayor.
-            Font tituloFont = workbook.createFont();
-            tituloFont.setBold(true);
-            tituloFont.setFontHeightInPoints((short) 14);
-            CellStyle tituloStyle = workbook.createCellStyle();
-            tituloStyle.setFont(tituloFont);
-
-            // Estilo de cabeceras: negrita + fondo gris claro.
-            Font headerFont = workbook.createFont();
-            headerFont.setBold(true);
-            CellStyle headerStyle = workbook.createCellStyle();
-            headerStyle.setFont(headerFont);
-            headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-            int rowIdx = 0;
-
-            // Fila 0: título, merge sobre todas las columnas.
-            Row tituloRow = sheet.createRow(rowIdx++);
-            Cell tituloCell = tituloRow.createCell(0);
-            tituloCell.setCellValue(titulo != null ? titulo : "");
-            tituloCell.setCellStyle(tituloStyle);
-            if (numCols > 1) {
-                sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, numCols - 1));
-            }
-
-            // Fila 1: cabeceras.
-            Row headerRow = sheet.createRow(rowIdx++);
-            if (cabeceras != null) {
-                for (int i = 0; i < cabeceras.size(); i++) {
-                    Cell cell = headerRow.createCell(i);
-                    cell.setCellValue(cabeceras.get(i) != null ? cabeceras.get(i) : "");
-                    cell.setCellStyle(headerStyle);
-                }
-            }
-
-            // Filas de datos.
-            if (filas != null) {
-                for (List<Object> fila : filas) {
-                    Row row = sheet.createRow(rowIdx++);
-                    if (fila == null) {
-                        continue;
-                    }
-                    for (int i = 0; i < fila.size(); i++) {
-                        setCellValue(row.createCell(i), fila.get(i));
-                    }
-                }
-            }
-
-            // Autosize de columnas según las cabeceras.
-            for (int i = 0; i < numCols; i++) {
-                sheet.autoSizeColumn(i);
-            }
+            escribirTitulo(workbook, sheet, titulo, numCols);
+            escribirCabeceras(workbook, sheet, cabeceras);
+            escribirFilas(sheet, filas);
+            autoajustarColumnas(sheet, numCols);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             workbook.write(out);
             return out.toByteArray();
         } catch (IOException e) {
             throw new UncheckedIOException("Error generando archivo XLSX", e);
+        }
+    }
+
+    /** Fila 0: título en negrita y tamaño mayor, fusionado sobre todas las columnas. */
+    private static void escribirTitulo(XSSFWorkbook workbook, Sheet sheet, String titulo, int numCols) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+
+        Cell cell = sheet.createRow(0).createCell(0);
+        cell.setCellValue(titulo != null ? titulo : "");
+        cell.setCellStyle(style);
+        // Con una sola columna no hay nada que fusionar (POI rechaza un rango de una celda).
+        if (numCols > 1) {
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, numCols - 1));
+        }
+    }
+
+    /** Fila 1: cabeceras en negrita con fondo gris claro. */
+    private static void escribirCabeceras(XSSFWorkbook workbook, Sheet sheet, List<String> cabeceras) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        Row row = sheet.createRow(1);
+        if (cabeceras == null) {
+            return;
+        }
+        for (int i = 0; i < cabeceras.size(); i++) {
+            Cell cell = row.createCell(i);
+            cell.setCellValue(cabeceras.get(i) != null ? cabeceras.get(i) : "");
+            cell.setCellStyle(style);
+        }
+    }
+
+    /** Filas de datos, a partir de la 2. Una fila null se deja vacía en vez de romper el export. */
+    private static void escribirFilas(Sheet sheet, List<List<Object>> filas) {
+        if (filas == null) {
+            return;
+        }
+        int rowIdx = 2;
+        for (List<Object> fila : filas) {
+            Row row = sheet.createRow(rowIdx++);
+            if (fila == null) {
+                continue;
+            }
+            for (int i = 0; i < fila.size(); i++) {
+                setCellValue(row.createCell(i), fila.get(i));
+            }
+        }
+    }
+
+    private static void autoajustarColumnas(Sheet sheet, int numCols) {
+        for (int i = 0; i < numCols; i++) {
+            sheet.autoSizeColumn(i);
         }
     }
 
