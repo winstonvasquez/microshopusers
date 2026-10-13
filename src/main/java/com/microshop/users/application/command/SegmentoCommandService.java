@@ -27,7 +27,7 @@ public class SegmentoCommandService {
     @Transactional
     public SegmentoResponseDto create(SegmentoRequestDto dto) {
         log.info("Creando segmento: {}", dto.nombre());
-        if (segmentoRepository.existsByNombreAndActivoTrue(dto.nombre())) {
+        if (segmentoRepository.existsByNombreAndCompanyIdAndActivoTrue(dto.nombre(), SecurityContextUtils.currentCompanyId())) {
             throw new ConflictException(msg.get("segmento.nombre.exists", dto.nombre()));
         }
         var entity = segmentoMapper.toEntity(dto);
@@ -41,7 +41,7 @@ public class SegmentoCommandService {
         log.info("Actualizando segmento ID: {}", id);
         var entity = findScopedOrThrow(id);
 
-        if (segmentoRepository.existsByNombreAndActivoTrueAndIdNot(dto.nombre(), id)) {
+        if (segmentoRepository.existsByNombreAndCompanyIdAndActivoTrueAndIdNot(dto.nombre(), entity.getCompanyId(), id)) {
             throw new ConflictException(msg.get("segmento.nombre.exists", dto.nombre()));
         }
 

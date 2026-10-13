@@ -14,9 +14,13 @@ import java.util.Optional;
 @Repository
 public interface SegmentoRepository extends JpaRepository<SegmentoEntity, Long> {
 
-    boolean existsByNombreAndActivoTrue(String nombre);
+    /**
+     * Nombre único dentro de la empresa. Antes era global: la empresa 2 no podía crear «Clientes VIP»
+     * porque la 1 ya lo tenía, y el 409 le confirmaba ese dato ajeno.
+     */
+    boolean existsByNombreAndCompanyIdAndActivoTrue(String nombre, Long companyId);
 
-    boolean existsByNombreAndActivoTrueAndIdNot(String nombre, Long id);
+    boolean existsByNombreAndCompanyIdAndActivoTrueAndIdNot(String nombre, Long companyId, Long id);
 
     /** Lookup scoped por tenant (defensa IDOR): usar en update/delete para no confirmar existencia ajena. */
     Optional<SegmentoEntity> findByIdAndCompanyId(Long id, Long companyId);
