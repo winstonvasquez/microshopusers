@@ -20,9 +20,11 @@ public class TesoreriaClient {
         this.webClient = webClient;
     }
 
-    public Mono<Long> createPayrollPayment(Long tenantId, Long employeeId, String periodo, BigDecimal amount) {
+    public Mono<Long> createPayrollPayment(Long tenantId, Long payrollId, Long employeeId, String periodo, BigDecimal amount) {
+        // payrollId permite a tesorería deduplicar el pago; si aún no lo lee, Jackson lo ignora.
         Map<String, Object> paymentRequest = Map.of(
                 "tenantId", tenantId,
+                "payrollId", payrollId,
                 "employeeId", employeeId,
                 "periodo", periodo,
                 "amount", amount,

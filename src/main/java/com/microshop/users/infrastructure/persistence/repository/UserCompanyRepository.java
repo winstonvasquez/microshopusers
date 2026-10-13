@@ -27,4 +27,7 @@ public interface UserCompanyRepository extends JpaRepository<UserCompanyEntity, 
      * por esta tabla de membresías.
      */
     boolean existsByUsuarioIdAndCompanyId(Long usuarioId, Long companyId);
+
+    /** Pertenencia vigente: una baja lógica (membresía inactiva) ya no habilita operar sobre el usuario. */
+    boolean existsByUsuarioIdAndCompanyIdAndIsActiveTrue(Long usuarioId, Long companyId);
 }

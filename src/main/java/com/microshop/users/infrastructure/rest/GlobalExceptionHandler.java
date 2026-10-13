@@ -9,6 +9,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,6 +35,15 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleBadCredentials(BadCredentialsException ex) {
         log.warn("Credenciales inválidas: {}", ex.getMessage());
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
+        detail.setType(URI.create("urn:users:unauthorized"));
+        detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
+        return detail;
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ProblemDetail handleDisabled(DisabledException ex) {
+        log.warn("Login de usuario desactivado: {}", ex.getMessage());
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Usuario desactivado");
         detail.setType(URI.create("urn:users:unauthorized"));
         detail.setProperty(PROPERTY_TIMESTAMP, Instant.now());
         return detail;

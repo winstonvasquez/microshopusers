@@ -24,9 +24,16 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
     Optional<UsuarioEntity> findByUsername(String username);
 
+    /** Login: el alta SaaS normaliza a minúsculas, quien escribe mayúsculas debe seguir entrando. */
+    Optional<UsuarioEntity> findByUsernameIgnoreCase(String username);
+
     Optional<UsuarioEntity> findByEmail(String email);
 
-    boolean existsByUsername(String username);
+    Optional<UsuarioEntity> findByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCase(String email);
+
+    boolean existsByUsernameIgnoreCase(String username);
 
     boolean existsByEmail(String email);
 
@@ -72,13 +79,13 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
      */
     @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
            "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
-           "WHERE uc.company.id = :companyId")
+           "WHERE uc.company.id = :companyId AND uc.isActive = true")
     Page<UsuarioEntity> findByCompanyId(@Param("companyId") Long companyId, Pageable pageable);
 
     /** Misma acotacion que {@link #findByCompanyId(Long, Pageable)} pero sin paginar. */
     @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
            "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
-           "WHERE uc.company.id = :companyId")
+           "WHERE uc.company.id = :companyId AND uc.isActive = true")
     java.util.List<UsuarioEntity> findAllByCompanyId(@Param("companyId") Long companyId);
 
     /**
@@ -92,7 +99,7 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
      */
     @Query("SELECT DISTINCT u FROM UsuarioEntity u " +
            "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
-           "WHERE uc.company.id = :companyId " +
+           "WHERE uc.company.id = :companyId AND uc.isActive = true " +
            "AND (CAST(:search AS String) IS NULL OR CAST(:search AS String) = '' " +
            "     OR LOWER(u.username) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +
            "     OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:search AS String), '%')) " +

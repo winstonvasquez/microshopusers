@@ -162,12 +162,16 @@ public class Payroll {
         calculateNeto();
     }
 
-    private void calculateNeto() {
+    // package-private: lo ejercita PayrollTest sin reflexión.
+    void calculateNeto() {
         if (sueldoBase != null) {
             BigDecimal totalIngresos = sueldoBase
                 .add(AppUtils.zeroIfNull(bonos))
                 .add(AppUtils.zeroIfNull(montoHorasExtras))
-                .add(AppUtils.zeroIfNull(asignacionFamiliar));
+                .add(AppUtils.zeroIfNull(asignacionFamiliar))
+                // Gratificación (Ley 27735): inafecta a AFP/ONP/EsSalud (sus bases se calculan sin ella
+                // en PayrollCommandService), pero SÍ se paga → entra al neto.
+                .add(AppUtils.zeroIfNull(gratificacion));
 
             BigDecimal totalDescuentos = AppUtils.zeroIfNull(descuentos)
                 .add(AppUtils.zeroIfNull(montoAfpOnp))

@@ -2,6 +2,7 @@ package com.microshop.rrhh.application.command;
 
 import com.microshop.rrhh.application.dto.contract.ContractRequestDto;
 import com.microshop.rrhh.application.dto.contract.ContractResponseDto;
+import com.microshop.rrhh.application.dto.employee.SalaryDto;
 import com.microshop.rrhh.application.mapper.ContractMapper;
 import com.microshop.users.application.MessageHelper;
 import com.microshop.rrhh.config.security.TenantContext;
@@ -31,6 +32,7 @@ public class ContractCommandService {
     private final ContractMapper contractMapper;
     private final TenantContext tenantContext;
     private final MessageHelper msg;
+    private final EmployeeSubResourceCommandService employeeSubResourceCommandService;
 
     public ContractResponseDto createContract(@Valid ContractRequestDto request) {
         Long tenantId = tenantContext.getCurrentTenantId();
@@ -51,6 +53,8 @@ public class ContractCommandService {
         contract.setEmployee(employee);
 
         Contract saved = contractRepository.save(contract);
+        reactivarSiCesado(employee);
+        sincronizarSalario(employee, saved);
         log.info("Contrato creado: {} para empleado {} - Tenant: {}", saved.getId(), request.employeeId(), tenantId);
         return contractMapper.toDto(saved);
     }
@@ -83,7 +87,21 @@ public class ContractCommandService {
 
         contract.setEstado(Contract.ContractStatus.FINALIZADO);
         contract.setMotivoFin(motivoFin);
+        // La planilla del mes del cese necesita la fecha de fin real del contrato.
+        // Un plazo fijo terminado antes de su fin NO debe conservar la fecha futura: la planilla
+        // (que liquida CESADO con contrato FINALIZADO solapado) pagaría meses posteriores al cese.
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        if (contract.getFechaFin() == null || contract.getFechaFin().isAfter(hoy)) contract.setFechaFin(hoy);
         Contract updated = contractRepository.save(contract);
+
+        // Sin otro contrato ACTIVO el empleado queda CESADO: la planilla sólo liquida ACTIVOS.
+        Employee employee = contract.getEmployee();
+        boolean quedaOtroActivo = contractRepository.findByTenantIdAndEmployeeId(tenantId, employee.getId()).stream()
+                .anyMatch(c -> !c.getId().equals(id) && c.getEstado() == Contract.ContractStatus.ACTIVO);
+        if (!quedaOtroActivo && employee.getEstado() == Employee.EmployeeStatus.ACTIVO) {
+            employee.setEstado(Employee.EmployeeStatus.CESADO);
+            employeeRepository.save(employee);
+        }
         log.info("Contrato terminado: {} - Tenant: {}", id, tenantId);
         return contractMapper.toDto(updated);
     }
@@ -103,8 +121,35 @@ public class ContractCommandService {
         Contract newContract = contractMapper.toEntity(request, tenantId);
         newContract.setEmployee(oldContract.getEmployee());
         Contract saved = contractRepository.save(newContract);
+        reactivarSiCesado(oldContract.getEmployee());
+        sincronizarSalario(oldContract.getEmployee(), saved);
 
         log.info("Contrato {} renovado con nuevo contrato {} - Tenant: {}", id, saved.getId(), tenantId);
         return contractMapper.toDto(saved);
+    }
+
+    /** Un contrato nuevo/renovado reincorpora a quien un fin de contrato dejó CESADO. */
+    private void reactivarSiCesado(Employee employee) {
+        if (employee.getEstado() == Employee.EmployeeStatus.CESADO) {
+            employee.setEstado(Employee.EmployeeStatus.ACTIVO);
+            employeeRepository.save(employee);
+        }
+    }
+
+    /**
+     * La planilla prioriza el Salary abierto sobre el contrato; sin esto, renovar a 2500 seguiría
+     * pagando 2000. Reusa createSalaryRecord (cierra el abierto con fechaFin = inicio - 1 y abre el nuevo).
+     */
+    private void sincronizarSalario(Employee employee, Contract contract) {
+        boolean yaVigente = employee.getSalaries().stream()
+                .anyMatch(s -> s.getFechaFin() == null && s.getSalarioBase().compareTo(contract.getSalarioBase()) == 0);
+        if (yaVigente) {
+            return;
+        }
+        employeeSubResourceCommandService.createSalaryRecord(employee.getId(), SalaryDto.Request.builder()
+                .fechaInicio(contract.getFechaInicio())
+                .salarioBase(contract.getSalarioBase())
+                .moneda(contract.getMoneda())
+                .build());
     }
 }

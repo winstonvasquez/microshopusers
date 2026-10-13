@@ -134,6 +134,11 @@ public class EvaluationCommandService {
         PerformanceEvaluation evaluation = evaluationRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Evaluación no encontrada"));
 
+        if (evaluation.getEstado() == PerformanceEvaluation.EvaluationStatus.APROBADA
+                || evaluation.getEstado() == PerformanceEvaluation.EvaluationStatus.CANCELADA) {
+            throw new BusinessException("No se puede cancelar una evaluación en estado " + evaluation.getEstado());
+        }
+
         evaluation.setEstado(PerformanceEvaluation.EvaluationStatus.CANCELADA);
         PerformanceEvaluation saved = evaluationRepository.save(evaluation);
         log.info("Evaluación cancelada: {} - Tenant: {}", id, tenantId);

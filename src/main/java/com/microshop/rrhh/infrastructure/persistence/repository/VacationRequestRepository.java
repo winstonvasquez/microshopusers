@@ -26,6 +26,14 @@ public interface VacationRequestRepository extends JpaRepository<VacationRequest
 
     List<VacationRequest> findByTenantIdAndEmployee_IdAndEstado(Long tenantId, Long employeeId, VacationRequest.VacationStatus estado);
 
+    /** Solicitudes vivas (SOLICITADO/APROBADO) del empleado cuyo rango se solapa con [inicio, fin]. */
+    @Query("SELECT COUNT(v) > 0 FROM VacationRequest v WHERE v.tenantId = :tenantId " +
+           "AND v.employee.id = :employeeId AND v.estado IN :estados " +
+           "AND v.fechaInicio <= :fin AND v.fechaFin >= :inicio")
+    boolean existsSolapada(@Param("tenantId") Long tenantId, @Param("employeeId") Long employeeId,
+                           @Param("estados") List<VacationRequest.VacationStatus> estados,
+                           @Param("inicio") LocalDate inicio, @Param("fin") LocalDate fin);
+
     long countByTenantIdAndEstado(Long tenantId, VacationRequest.VacationStatus estado);
 
     // Filtros avanzados (2026-07-27): tipo de vacación, empleado, departamento, aprobador y rangos

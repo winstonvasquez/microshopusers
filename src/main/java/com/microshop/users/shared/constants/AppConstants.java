@@ -98,6 +98,9 @@ public final class AppConstants {
         // PayrollCommandService — recargo hora extra 25% (DL 854 art. 10, primeras 2h).
         public static final java.math.BigDecimal RECARGO_HORA_EXTRA = new java.math.BigDecimal("1.25");
 
+        // PayrollCommandService — recargo hora extra 35% (DL 854 art. 10, desde la 3.ª hora del día).
+        public static final java.math.BigDecimal RECARGO_HORA_EXTRA_TRAMO2 = new java.math.BigDecimal("1.35");
+
         // PayrollCommandService — proyección anual de renta 5ta: sueldoBase * 14 (12 + 2 grat).
         public static final int MESES_PROYECCION_ANUAL = 14;
 

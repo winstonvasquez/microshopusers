@@ -53,6 +53,7 @@ public class TrainingCommandService {
         Long tenantId = tenantContext.getCurrentTenantId();
         Training training = trainingRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Capacitación no encontrada"));
+        rechazarSiTerminal(training);
         trainingMapper.updateEntity(training, request);
         Training saved = trainingRepository.save(training);
         long count = participationRepository.countByTenantIdAndTrainingId(tenantId, id);
@@ -97,6 +98,10 @@ public class TrainingCommandService {
         Training training = trainingRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Capacitación no encontrada"));
 
+        if (training.getEstado() == Training.TrainingStatus.COMPLETADO) {
+            throw new BusinessException("No se puede cancelar una capacitación COMPLETADA");
+        }
+
         training.setEstado(Training.TrainingStatus.CANCELADO);
         Training saved = trainingRepository.save(training);
         long count = participationRepository.countByTenantIdAndTrainingId(tenantId, id);
@@ -104,13 +109,22 @@ public class TrainingCommandService {
         return trainingMapper.toDto(saved, count);
     }
 
+    /** Una capacitación COMPLETADA/CANCELADA es terminal: no se edita ni admite inscripciones (409). */
+    private static void rechazarSiTerminal(Training training) {
+        if (training.getEstado() == Training.TrainingStatus.COMPLETADO
+                || training.getEstado() == Training.TrainingStatus.CANCELADO) {
+            throw new ConflictException("La capacitación está " + training.getEstado() + " y ya no admite cambios");
+        }
+    }
+
     // ── Participation ───────────────────────────────────────────────────────
 
     public TrainingParticipationResponseDto enrollParticipant(@Valid TrainingParticipationRequestDto request) {
         Long tenantId = tenantContext.getCurrentTenantId();
 
-        trainingRepository.findByIdAndTenantId(request.trainingId(), tenantId)
+        Training training = trainingRepository.findByIdAndTenantId(request.trainingId(), tenantId)
                 .orElseThrow(() -> new NotFoundException("Capacitación no encontrada"));
+        rechazarSiTerminal(training);
 
         Employee employee = employeeRepository.findByIdAndTenantId(request.employeeId(), tenantId)
                 .orElseThrow(() -> new NotFoundException("Empleado no encontrado"));

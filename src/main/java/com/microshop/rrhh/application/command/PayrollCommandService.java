@@ -21,10 +21,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import reactor.core.publisher.Mono;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
@@ -61,6 +68,11 @@ public class PayrollCommandService {
     private final UsersParameterClient usersParameterClient;
     private final TesoreriaClient tesoreriaClient;
     private final ContabilidadClient contabilidadClient;
+    private final PlatformTransactionManager txManager;
+
+    // Horas extra (DL 854 art. 10): 25% las 2 primeras horas del día, 35% desde la 3.ª.
+    private static final BigDecimal HORAS_EXTRA_TRAMO1 = new BigDecimal("2");
+    private static final Duration TIMEOUT_TESORERIA = Duration.ofSeconds(10);
 
     public PayrollResponseDto createPayroll(@Valid PayrollRequestDto request) {
         Long tenantId = tenantContext.getCurrentTenantId();
@@ -140,8 +152,12 @@ public class PayrollCommandService {
         YearMonth ym = YearMonth.parse(periodo);
         int month = ym.getMonthValue();
 
-        List<Employee> activeEmployees = employeeRepository.findByTenantIdAndEstado(
-                tenantId, Employee.EmployeeStatus.ACTIVO);
+        // Los CESADOS entran sólo si su contrato terminó dentro del periodo (ver tieneContratoVigente):
+        // cesar a mitad de mes no puede dejar sin pagar los días trabajados.
+        List<Employee> activeEmployees = new java.util.ArrayList<>(employeeRepository.findByTenantIdAndEstado(
+                tenantId, Employee.EmployeeStatus.ACTIVO));
+        activeEmployees.addAll(employeeRepository.findByTenantIdAndEstado(
+                tenantId, Employee.EmployeeStatus.CESADO));
 
         // Parámetros ERP: mismos valores para TODOS los empleados de la corrida — se izan
         // fuera del loop (antes: 5 HTTP bloqueantes POR empleado en calcularPlanillaPeruana).
@@ -152,8 +168,24 @@ public class PayrollCommandService {
                 .map(p -> p.getEmployee().getId())
                 .collect(Collectors.toSet());
 
-        List<Payroll> payrolls = activeEmployees.stream()
+        // Se excluye a quien TIENE contratos pero ninguno ACTIVO que cubra el periodo (cesado/vencido):
+        // antes caía al Salary abierto o al RMV. Quien nunca tuvo contrato registrado conserva la
+        // cadena Salary → RMV (decisión previa): excluirlo dejaba sin planilla a toda empresa que no
+        // usa el módulo de contratos.
+        LocalDate inicioPeriodo = ym.atDay(1);
+        LocalDate finPeriodo = ym.atEndOfMonth();
+        List<Employee> candidatos = activeEmployees.stream()
                 .filter(emp -> !employeeIdsConPlanilla.contains(emp.getId()))
+                .toList();
+        List<Employee> conContrato = candidatos.stream()
+                .filter(emp -> tieneContratoVigente(emp, inicioPeriodo, finPeriodo))
+                .toList();
+        if (conContrato.size() < candidatos.size()) {
+            log.info("Planilla {} - Tenant {}: {} empleado(s) excluido(s): tienen contratos pero ninguno ACTIVO que cubra el periodo",
+                    periodo, tenantId, candidatos.size() - conContrato.size());
+        }
+
+        List<Payroll> payrolls = conContrato.stream()
                 .map(emp -> calcularPlanillaPeruana(emp, periodo, ym, month, parametros))
                 .toList();
 
@@ -174,43 +206,31 @@ public class PayrollCommandService {
         }
 
         payroll.setEstado(Payroll.PayrollStatus.APROBADO);
-        Payroll updated = payrollRepository.save(payroll);
+        // saveAndFlush: dispara @PreUpdate (recalcula neto) ANTES de leerlo para el pago/asiento.
+        Payroll updated = payrollRepository.saveAndFlush(payroll);
         log.info("Planilla aprobada: {} - Tenant: {}", id, tenantId);
 
-        // Sprint 7.2 — Disparar pago en tesorería (fire-and-forget no bloquea aprobación
-        // si tesorería está caída; reintento manual via markAsPaid).
-        try {
-            BigDecimal monto = AppUtils.zeroIfNull(updated.getNeto());
-            String periodo = updated.getPeriodo();
-            Long employeeId = AppUtils.idOrNull(updated.getEmployee(), e -> e.getId());
+        BigDecimal monto = AppUtils.zeroIfNull(updated.getNeto());
+        String periodo = updated.getPeriodo();
+        Long employeeId = AppUtils.idOrNull(updated.getEmployee(), e -> e.getId());
 
+        // Pago en tesorería y asiento contable SÓLO tras el commit: dentro de la transacción un
+        // rollback posterior dejaría un pago/asiento huérfano de una planilla que no quedó APROBADA.
+        // Son best-effort: si fallan, la aprobación ya está persistida y markAsPaid reintenta el pago.
+        despuesDelCommit(() -> {
             if (employeeId != null && monto.signum() > 0) {
-                tesoreriaClient.createPayrollPayment(tenantId, employeeId, periodo, monto)
-                        .doOnSuccess(paymentId -> log.info(
-                                "Pago planilla disparado en tesorería: paymentId={} payrollId={} monto={}",
-                                paymentId, id, monto))
-                        .doOnError(e -> log.warn(
-                                "Tesorería no respondió a pago planilla {}: {} (reintenta vía markAsPaid)",
-                                id, e.getMessage()))
-                        .subscribe();
+                dispararPago(tenantId, id, employeeId, periodo, monto);
             } else {
                 log.warn("Planilla {} aprobada sin disparar pago — employeeId o monto inválido", id);
             }
-        } catch (Exception e) {
-            log.warn("Fallo disparando pago automático para planilla {}: {}", id, e.getMessage());
-        }
-
-        // S12 — Asiento de provisión de planilla en contabilidad (best-effort, sin outbox).
-        // Si contabilidad falla, la aprobación ya quedó persistida; el asiento se reintenta manualmente.
-        try {
-            contabilidadClient.registrarAsientoPlanilla(updated)
-                    .doOnError(e -> log.warn(
-                            "Asiento planilla no registrado en contabilidad para payrollId={}: {}",
-                            id, e.getMessage()))
-                    .subscribe();
-        } catch (Exception e) {
-            log.warn("Fallo disparando asiento de planilla a contabilidad para payrollId={}: {}", id, e.getMessage());
-        }
+            try {
+                contabilidadClient.registrarAsientoPlanilla(updated)
+                        .onErrorResume(e -> Mono.empty()) // ya logueado en el cliente
+                        .subscribe();
+            } catch (Exception e) {
+                log.warn("Fallo disparando asiento de planilla a contabilidad para payrollId={}: {}", id, e.getMessage());
+            }
+        });
 
         return payrollMapper.toDto(updated);
     }
@@ -224,11 +244,111 @@ public class PayrollCommandService {
             throw new BusinessException(msg.get("payroll.estado.invalido", payroll.getEstado().name()));
         }
 
+        // Sin pago registrado en tesorería (el disparo tras la aprobación falló o no se confirmó):
+        // se reintenta ahora; si tampoco responde NO se marca PAGADO (quedaría pagada sin pago real).
+        // ponytail: si el disparo previo sí llegó a tesorería pero no se guardó el id, aquí puede
+        // duplicarse hasta que tesorería deduplique por payrollId.
+        if (payroll.getPagoId() == null) {
+            BigDecimal monto = AppUtils.zeroIfNull(payroll.getNeto());
+            Long employeeId = AppUtils.idOrNull(payroll.getEmployee(), e -> e.getId());
+            if (employeeId != null && monto.signum() > 0) {
+                try {
+                    Long pagoId = tesoreriaClient.createPayrollPayment(tenantId, id, employeeId, payroll.getPeriodo(), monto)
+                            .block(TIMEOUT_TESORERIA);
+                    payroll.setPagoId(pagoId);
+                } catch (Exception e) {
+                    log.warn("Reintento de pago de planilla {} en tesorería falló: {}", id, e.getMessage());
+                    throw new BusinessException("No se pudo registrar el pago de la planilla en tesorería; reintente más tarde");
+                }
+            }
+        }
+
         payroll.setEstado(Payroll.PayrollStatus.PAGADO);
         payroll.setFechaPago(LocalDate.now());
         Payroll updated = payrollRepository.save(payroll);
         log.info("Planilla pagada: {} - Tenant: {}", id, tenantId);
         return payrollMapper.toDto(updated);
+    }
+
+    /** Ejecuta la acción tras el commit de la transacción en curso (o de inmediato si no hay ninguna). */
+    private void despuesDelCommit(Runnable accion) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            accion.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    accion.run();
+                } catch (Exception e) {
+                    log.warn("Acción post-commit de planilla falló: {}", e.getMessage());
+                }
+            }
+        });
+    }
+
+    /** Dispara el pago en tesorería y, si responde con id, lo guarda en Payroll.pagoId (tx propia: ya no hay una abierta). */
+    private void dispararPago(Long tenantId, Long payrollId, Long employeeId, String periodo, BigDecimal monto) {
+        tesoreriaClient.createPayrollPayment(tenantId, payrollId, employeeId, periodo, monto)
+                .doOnSuccess(pagoId -> {
+                    log.info("Pago planilla disparado en tesorería: paymentId={} payrollId={} monto={}", pagoId, payrollId, monto);
+                    guardarPagoId(tenantId, payrollId, pagoId);
+                })
+                .doOnError(e -> log.warn(
+                        "Tesorería no respondió a pago planilla {}: {} (reintenta vía markAsPaid)", payrollId, e.getMessage()))
+                .onErrorResume(e -> Mono.empty())
+                .subscribe();
+    }
+
+    private void guardarPagoId(Long tenantId, Long payrollId, Long pagoId) {
+        if (pagoId == null) {
+            return;
+        }
+        try {
+            TransactionTemplate tx = new TransactionTemplate(txManager);
+            tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            tx.executeWithoutResult(status -> payrollRepository.findByIdAndTenantId(payrollId, tenantId)
+                    .ifPresent(p -> p.setPagoId(pagoId)));
+        } catch (Exception e) {
+            log.warn("No se pudo guardar pagoId={} de la planilla {}: {}", pagoId, payrollId, e.getMessage());
+        }
+    }
+
+    /**
+     * Sin contratos registrados → true (se liquida por Salary/RMV). Con contratos → exige uno ACTIVO
+     * (o FINALIZADO con fechaFin) que solape el periodo [inicio, fin] (fechaFin nula = indefinido).
+     */
+    static boolean tieneContratoVigente(Employee emp, LocalDate inicio, LocalDate fin) {
+        boolean sinContratos = emp.getContracts() == null || emp.getContracts().isEmpty();
+        // Un CESADO sin contratos no tiene fecha de cese conocida: no se liquida en ningún periodo.
+        if (emp.getEstado() == Employee.EmployeeStatus.CESADO) {
+            if (sinContratos) return false;
+        } else if (sinContratos) {
+            return true;
+        }
+        return emp.getContracts().stream()
+                .filter(c -> c.getEstado() == Contract.ContractStatus.ACTIVO
+                        || (c.getEstado() == Contract.ContractStatus.FINALIZADO && c.getFechaFin() != null))
+                .anyMatch(c -> !c.getFechaInicio().isAfter(fin)
+                        && (c.getFechaFin() == null || !c.getFechaFin().isBefore(inicio)));
+    }
+
+    /**
+     * Monto de horas extra por REGISTRO de asistencia (el tope de 2 h al 25% es diario):
+     * min(h,2)×1.25 + max(h−2,0)×1.35 sobre el valor hora.
+     */
+    static BigDecimal calcularMontoHorasExtras(List<BigDecimal> horasPorRegistro, BigDecimal tarifaHora) {
+        BigDecimal equivalente = BigDecimal.ZERO;
+        for (BigDecimal h : horasPorRegistro) {
+            BigDecimal horas = AppUtils.zeroIfNull(h);
+            BigDecimal tramo1 = horas.min(HORAS_EXTRA_TRAMO1);
+            BigDecimal tramo2 = horas.subtract(tramo1).max(BigDecimal.ZERO);
+            equivalente = equivalente
+                    .add(tramo1.multiply(AppConstants.Negocio.RECARGO_HORA_EXTRA))
+                    .add(tramo2.multiply(AppConstants.Negocio.RECARGO_HORA_EXTRA_TRAMO2));
+        }
+        return equivalente.multiply(tarifaHora).setScale(AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
     }
 
     /**
@@ -343,8 +463,10 @@ public class PayrollCommandService {
 
         // 1. Sueldo base — prioridad: (a) Salary abierto más reciente, (b) sueldo del
         // contrato ACTIVO más reciente (reconcilia ambas fuentes de remuneración), (c) RMV.
+        // Salary vigente EN el periodo (un aumento futuro ya cargado no se paga antes de su fecha).
         BigDecimal sueldoBase = emp.getSalaries().stream()
-                .filter(s -> s.getFechaFin() == null)
+                .filter(s -> !s.getFechaInicio().isAfter(ym.atEndOfMonth())
+                        && (s.getFechaFin() == null || !s.getFechaFin().isBefore(ym.atDay(1))))
                 .max(Comparator.comparing(Salary::getFechaInicio))
                 .map(Salary::getSalarioBase)
                 .or(() -> emp.getContracts().stream()
@@ -372,11 +494,10 @@ public class PayrollCommandService {
                              a.getTipoRegistro() == Attendance.AttendanceType.TARDANZA)
                 .count();
 
-        // Overtime: 25% surcharge for first 2h, 35% after (DL 854 art. 10)
+        // Overtime: 25% las 2 primeras horas de cada día, 35% desde la 3.ª (DL 854 art. 10)
         BigDecimal tarifaHora = sueldoBase.divide(AppConstants.Negocio.HORAS_MES_LEGAL, AppConstants.Money.ESCALA_RATIO, AppConstants.Money.REDONDEO);
-        BigDecimal montoHorasExtras = horasExtras.multiply(tarifaHora)
-                .multiply(AppConstants.Negocio.RECARGO_HORA_EXTRA)
-                .setScale(AppConstants.Money.ESCALA, AppConstants.Money.REDONDEO);
+        BigDecimal montoHorasExtras = calcularMontoHorasExtras(
+                monthAttendance.stream().map(Attendance::getHorasExtras).toList(), tarifaHora);
 
         // 4. Base computable
         BigDecimal baseComputable = sueldoBase.add(asigFamiliar).add(montoHorasExtras);

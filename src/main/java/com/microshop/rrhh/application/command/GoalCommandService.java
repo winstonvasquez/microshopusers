@@ -9,6 +9,7 @@ import com.microshop.rrhh.domain.model.Goal;
 import com.microshop.rrhh.infrastructure.persistence.repository.EmployeeRepository;
 import com.microshop.rrhh.infrastructure.persistence.repository.GoalRepository;
 import com.microshop.users.shared.exception.BusinessException;
+import com.microshop.users.shared.exception.ConflictException;
 import com.microshop.users.shared.exception.NotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class GoalCommandService {
 
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Meta no encontrada"));
+        rechazarSiTerminal(goal);
 
         goal.setTitulo(request.titulo());
         goal.setDescripcion(request.descripcion());
@@ -76,6 +78,7 @@ public class GoalCommandService {
 
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Meta no encontrada"));
+        rechazarSiTerminal(goal);
 
         goal.setPorcentajeAvance(porcentaje);
         if (porcentaje.compareTo(new BigDecimal("100")) >= 0) {
@@ -87,10 +90,21 @@ public class GoalCommandService {
         return evaluationMapper.toGoalDto(saved);
     }
 
+    /** Una meta COMPLETADA/CANCELADA es terminal: no se edita ni se le mueve el avance (409). */
+    private static void rechazarSiTerminal(Goal goal) {
+        if (goal.getEstado() == Goal.GoalStatus.COMPLETADO || goal.getEstado() == Goal.GoalStatus.CANCELADO) {
+            throw new ConflictException("La meta está " + goal.getEstado() + " y ya no admite cambios");
+        }
+    }
+
     public GoalResponseDto completeGoal(Long id) {
         Long tenantId = tenantContext.getCurrentTenantId();
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Meta no encontrada"));
+
+        if (goal.getEstado() == Goal.GoalStatus.CANCELADO) {
+            throw new BusinessException("No se puede completar una meta CANCELADA");
+        }
 
         goal.setEstado(Goal.GoalStatus.COMPLETADO);
         goal.setPorcentajeAvance(new BigDecimal("100"));
@@ -103,6 +117,10 @@ public class GoalCommandService {
         Long tenantId = tenantContext.getCurrentTenantId();
         Goal goal = goalRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new NotFoundException("Meta no encontrada"));
+
+        if (goal.getEstado() == Goal.GoalStatus.COMPLETADO) {
+            throw new BusinessException("No se puede cancelar una meta COMPLETADA");
+        }
 
         goal.setEstado(Goal.GoalStatus.CANCELADO);
         Goal saved = goalRepository.save(goal);

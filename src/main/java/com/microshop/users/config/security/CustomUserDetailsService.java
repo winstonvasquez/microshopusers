@@ -24,7 +24,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        UsuarioEntity usuario = usuarioRepository.findByUsername(username)
+        UsuarioEntity usuario = usuarioRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
 
         // Mapear el rol asignado al usuario como GrantedAuthority
@@ -33,10 +33,11 @@ public class CustomUserDetailsService implements UserDetailsService {
             authorities = List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getRol().getNombre()));
         }
 
-        return new User(
-                usuario.getUsername(),
-                usuario.getPassword(),
-                authorities
-        );
+        // disabled: un usuario con activo=false no puede autenticarse (DisabledException).
+        return User.withUsername(usuario.getUsername())
+                .password(usuario.getPassword())
+                .authorities(authorities)
+                .disabled(!usuario.isActivo())
+                .build();
     }
 }

@@ -1,0 +1,1 @@
+- [Kardex: producto vs variante](project_kardex_clave_producto_vs_variante.md) — kardex de invalmacén por id de PRODUCTO (ventas mandaba variante, resuelto 2026-10-12); revisar el id en todo movimiento s2s

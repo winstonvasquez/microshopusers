@@ -23,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.microshop.rrhh.domain.model.VacationRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -164,11 +165,19 @@ public class VacationController {
     }
 
     @PutMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','RRHH')") // la jerarquía de SecurityConfig incluye a SUPERADMIN
     @Operation(summary = "Aprobar o rechazar solicitud de vacaciones")
     public ResponseEntity<VacationResponseDto> approveOrRejectVacation(
             @PathVariable Long id,
             @Valid @RequestBody VacationApprovalDto approval) {
         return ResponseEntity.ok(vacationCommandService.approveOrRejectVacation(id, approval));
+    }
+
+    @PatchMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','RRHH')")
+    @Operation(summary = "Cancelar solicitud SOLICITADO/APROBADO (devuelve días al saldo si estaba aprobada)")
+    public ResponseEntity<VacationResponseDto> cancelVacation(@PathVariable Long id) {
+        return ResponseEntity.ok(vacationCommandService.cancelVacation(id));
     }
 
     // ── Leave Balance ────────────────────────────────────────────────────────

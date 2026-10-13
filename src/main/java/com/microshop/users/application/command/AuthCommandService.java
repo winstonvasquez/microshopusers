@@ -26,6 +26,7 @@ import com.microshop.users.domain.service.OtpService;
 import com.microshop.users.shared.exception.BusinessException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -99,7 +100,7 @@ public class AuthCommandService {
     }
 
     private UsuarioEntity getUser(String username) {
-        return usuarioRepository.findByUsername(username)
+        return usuarioRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new IllegalArgumentException(msg.get("auth.credentials.invalid")));
     }
 
@@ -111,7 +112,16 @@ public class AuthCommandService {
         if (requestedCompanyId != null && requestedCompanyId != 0L) {
             return requestedCompanyId;
         }
-        return userCompanies.isEmpty() ? null : userCompanies.get(0).getCompany().getId();
+        // Solo membresías ACTIVAS: una baja en la empresa A no debe emitir un JWT de A.
+        return userCompanies.stream().filter(UserCompanyEntity::isActive).findFirst()
+                .map(uc -> uc.getCompany().getId()).orElse(null);
+    }
+
+    /** Guard común de los logins que no pasan por AuthenticationManager (PIN, OTP, social). */
+    private void requireActivo(UsuarioEntity user) {
+        if (!user.isActivo()) {
+            throw new DisabledException("User is disabled");
+        }
     }
 
     private void validateCompanyMembership(Long companyId, List<UserCompanyEntity> userCompanies) {
@@ -252,6 +262,7 @@ public class AuthCommandService {
             throw new IllegalArgumentException(msg.get("auth.credentials.invalid"));
         }
 
+        requireActivo(user);
         var userCompanies = getUserCompanies(user.getId());
         var resolvedCompanyId = determineCompanyId(companyId, userCompanies);
         if (companyId == null) {
@@ -291,7 +302,8 @@ public class AuthCommandService {
         // Solo candidatos con PIN y rol autorizador: el filtro lo hace la BD, no un findAll().
         UsuarioEntity supervisor = null;
         for (UsuarioEntity u : usuarioRepository.findByPinHashIsNotNullAndRol_NombreIn(ROLES_AUTORIZADORES)) {
-            if (passwordEncoder.matches(pin, u.getPinHash())) {
+            // Un supervisor desactivado no autoriza operaciones POS (mismo criterio que requireActivo).
+            if (u.isActivo() && passwordEncoder.matches(pin, u.getPinHash())) {
                 supervisor = u;
                 break;
             }
@@ -340,9 +352,10 @@ public class AuthCommandService {
         }
         otpService.invalidate(email);
 
-        UsuarioEntity user = usuarioRepository.findByEmail(email.toLowerCase())
+        UsuarioEntity user = usuarioRepository.findByEmailIgnoreCase(email.trim())
                 .orElseThrow(() -> new IllegalArgumentException(msg.get("user.not.found", email)));
 
+        requireActivo(user);
         var userCompanies = getUserCompanies(user.getId());
         var companyId = determineCompanyId(null, userCompanies);
         var jwtToken = generateJwtToken(user, companyId);
@@ -379,6 +392,8 @@ public class AuthCommandService {
             } else {
                 throw new IllegalArgumentException(msg.get("auth.google.token.invalid"));
             }
+        } catch (DisabledException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error validando token de Google", e);
             throw new IllegalArgumentException(msg.get("auth.google.token.validation.failed"));
@@ -409,6 +424,8 @@ public class AuthCommandService {
                 throw new IllegalArgumentException(
                         msg.get("auth.facebook.token.invalid"));
             }
+        } catch (DisabledException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error validando token de Facebook", e);
             throw new IllegalArgumentException(msg.get("auth.facebook.token.validation.failed"));
@@ -416,7 +433,7 @@ public class AuthCommandService {
     }
 
     private LoginResponse autoRegisterOrLoginSocialUser(String email, String name) {
-        UsuarioEntity user = usuarioRepository.findByEmail(email.toLowerCase())
+        UsuarioEntity user = usuarioRepository.findByEmailIgnoreCase(email.trim())
                 .orElseGet(() -> {
                     UsuarioEntity newUser = new UsuarioEntity();
                     newUser.setEmail(email.toLowerCase());
@@ -425,6 +442,7 @@ public class AuthCommandService {
                     return usuarioRepository.save(newUser);
                 });
 
+        requireActivo(user);
         var userCompanies = getUserCompanies(user.getId());
         var companyId = determineCompanyId(null, userCompanies);
         var jwtToken = generateJwtToken(user, companyId);

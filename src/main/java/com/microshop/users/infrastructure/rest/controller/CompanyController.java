@@ -250,6 +250,7 @@ public class CompanyController {
 
     @PutMapping("/{companyId}/modules/{moduleId}")
     @Operation(summary = "Activar/desactivar módulo para empresa")
+    @PreAuthorize("hasRole('SUPERADMIN')")
     @RequiresTenantAccess(allowSuperAdmin = true)
     public ResponseEntity<Void> toggleCompanyModule(
             @PathVariable Long companyId,

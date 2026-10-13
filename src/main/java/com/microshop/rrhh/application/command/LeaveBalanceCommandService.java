@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -35,8 +36,13 @@ public class LeaveBalanceCommandService {
         List<Employee> activeEmployees = employeeRepository.findByTenantIdAndEstado(
                 tenantId, Employee.EmployeeStatus.ACTIVO);
 
+        // Cumple 1 año de servicio al 31/12 del año anterior; fechaIngreso es NOT NULL en BD,
+        // el null se deja pasar (comportamiento previo) por defensa.
+        LocalDate corte = LocalDate.of(year - 1, 12, 31);
+
         int generated = 0;
         for (Employee emp : activeEmployees) {
+            if (emp.getFechaIngreso() != null && emp.getFechaIngreso().isAfter(corte)) continue;
             var existing = leaveBalanceRepository.findByTenantIdAndEmployeeIdAndAnio(tenantId, emp.getId(), year);
             if (existing.isPresent()) continue;
 
@@ -75,5 +81,15 @@ public class LeaveBalanceCommandService {
         balance.setDiasUsados(balance.getDiasUsados().add(daysDecimal));
         // diasDisponibles is updated via @PreUpdate
         leaveBalanceRepository.save(balance);
+    }
+
+    /** Devuelve al saldo los días descontados al aprobar (cancelación de una solicitud APROBADA). */
+    public void restoreBalance(Long employeeId, int days, int year) {
+        Long tenantId = tenantContext.getCurrentTenantId();
+        leaveBalanceRepository.findByTenantIdAndEmployeeIdAndAnio(tenantId, employeeId, year).ifPresent(balance -> {
+            BigDecimal usados = balance.getDiasUsados().subtract(new BigDecimal(days));
+            balance.setDiasUsados(usados.max(BigDecimal.ZERO));
+            leaveBalanceRepository.save(balance);
+        });
     }
 }

@@ -29,7 +29,7 @@ public class UserCompanyQueryService {
      * modificar o borrar usuarios de otra con solo cambiar el id de la URL.
      */
     public boolean perteneceAlTenant(@NonNull Long usuarioId, @NonNull Long companyId) {
-        return userCompanyRepository.existsByUsuarioIdAndCompanyId(usuarioId, companyId);
+        return userCompanyRepository.existsByUsuarioIdAndCompanyIdAndIsActiveTrue(usuarioId, companyId);
     }
 
     /**

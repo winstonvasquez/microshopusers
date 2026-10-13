@@ -15,7 +15,7 @@ public class AuthQueryService {
     private final UsuarioRepository usuarioRepository;
 
     public CheckEmailResponse checkEmail(String email) {
-        boolean exists = usuarioRepository.existsByEmail(email.toLowerCase());
+        boolean exists = usuarioRepository.existsByEmailIgnoreCase(email.trim());
         String masked = maskEmail(email);
         return new CheckEmailResponse(exists, masked);
     }

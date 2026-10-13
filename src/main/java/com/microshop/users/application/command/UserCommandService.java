@@ -10,6 +10,7 @@ import com.microshop.users.application.mapper.UserMapper;
 import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.infrastructure.persistence.repository.PersonaRepository;
 import com.microshop.users.infrastructure.persistence.repository.RolRepository;
+import com.microshop.users.infrastructure.persistence.repository.UserCompanyRepository;
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.BusinessException;
@@ -32,6 +33,9 @@ public class UserCommandService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final MessageHelper msg;
+    private final UserCompanyCommandService userCompanyCommandService;
+    private final UserCompanyRepository userCompanyRepository;
+    private final SesionRevocacionService sesionRevocacionService;
 
 
     @Transactional
@@ -45,7 +49,7 @@ public class UserCommandService {
 
         var usuario = UsuarioEntity.builder()
                 .username(dto.username())
-                .email(dto.email())
+                .email(normalizarEmail(dto.email()))
                 .password(passwordEncoder.encode(dto.password()))
                 .rol(rol)
                 .persona(persona)
@@ -57,6 +61,12 @@ public class UserCommandService {
         }
 
         usuario = usuarioRepository.save(usuario);
+        // Sin membresía el usuario no aparece en el listado de su empresa y su login da companyId=null.
+        // SUPERADMIN sin empresa activa en el JWT: no se vincula a ninguna.
+        Long companyId = SecurityContextUtils.currentCompanyId();
+        if (companyId != null) {
+            userCompanyCommandService.addUserToCompany(usuario.getId(), companyId, rol.getId());
+        }
         log.info("User created successfully: {}", usuario.getId());
 
         return userMapper.toDto(usuario);
@@ -72,7 +82,8 @@ public class UserCommandService {
         validateUpdateUser(usuario, dto);
 
         usuario.setUsername(dto.username());
-        usuario.setEmail(dto.email());
+        usuario.setEmail(normalizarEmail(dto.email()));
+        boolean cambioClave = false;
 
         // Contraseña opcional al editar: en blanco = mantener la actual. La restricción
         // @NotBlank/@Size del DTO solo corre en el grupo OnCreate (POST), así que la
@@ -84,12 +95,23 @@ public class UserCommandService {
                                 + AppConstants.Seguridad.PASSWORD_MIN_LENGTH + " caracteres");
             }
             usuario.setPassword(passwordEncoder.encode(dto.password()));
+            cambioClave = true;
         }
 
         // `activo` opcional: null = no tocar el estado actual (permite activar/desactivar
         // desde el formulario sin depender del DELETE de baja lógica).
+        boolean desactivado = false;
         if (dto.activo() != null) {
+            desactivado = usuario.isActivo() && !dto.activo();
             usuario.setActivo(dto.activo());
+            // Reactivar al usuario también reactiva su membresía en la empresa activa (la baja la apagó).
+            Long companyActual = SecurityContextUtils.currentCompanyId();
+            if (dto.activo() && companyActual != null) {
+                userCompanyRepository.findByUsuarioIdAndCompanyId(id, companyActual).ifPresent(m -> {
+                    m.setActive(true);
+                    userCompanyRepository.save(m);
+                });
+            }
         }
 
         if (!usuario.getRol().getId().equals(dto.rolId())) {
@@ -111,18 +133,40 @@ public class UserCommandService {
         personaRepository.save(persona);
 
         usuario = usuarioRepository.save(usuario);
+        // Desactivar o cambiar la clave corta las sesiones vivas: el token no vale hasta expirar.
+        if (desactivado || cambioClave) {
+            sesionRevocacionService.revocarPorUsuario(id);
+        }
         log.info("User updated successfully: {}", id);
 
         return userMapper.toDto(usuario);
     }
 
+    /**
+     * Baja lógica (nunca DELETE físico: user_company y sesion referencian al usuario por FK).
+     * Con empresa activa se desactiva la membresía de ESA empresa y, si no le queda ninguna activa,
+     * el usuario. Sin empresa (SUPERADMIN) se desactiva el usuario globalmente.
+     */
     @Transactional
     public void deleteUser(Long id) {
         log.info("Deleting user: {}", id);
-        if (!usuarioRepository.existsById(id)) {
-            throw new IllegalArgumentException(msg.get("user.not.found", id));
+        var usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(msg.get("user.not.found", id)));
+
+        Long companyId = SecurityContextUtils.currentCompanyId();
+        if (companyId == null) {
+            usuario.setActivo(false);
+        } else {
+            var membresia = userCompanyRepository.findByUsuarioIdAndCompanyId(id, companyId)
+                    .orElseThrow(() -> new NotFoundException("user.not.found"));
+            membresia.setActive(false);
+            userCompanyRepository.save(membresia);
+            if (userCompanyRepository.findByUsuarioId(id).stream().noneMatch(uc -> uc.isActive())) {
+                usuario.setActivo(false);
+            }
         }
-        usuarioRepository.deleteById(id);
+        usuarioRepository.save(usuario);
+        sesionRevocacionService.revocarPorUsuario(id);
     }
 
     /**
@@ -160,7 +204,12 @@ public class UserCommandService {
 
         usuario.setPassword(passwordEncoder.encode(newPassword));
         usuarioRepository.save(usuario);
+        sesionRevocacionService.revocarPorUsuario(usuario.getId());
         log.info("Password changed successfully for user: {}", username);
+    }
+
+    private static String normalizarEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
     }
 
     private RolEntity findRol(Long rolId) {
@@ -169,10 +218,10 @@ public class UserCommandService {
     }
 
     private void validateNewUser(UserRequestDto dto) {
-        if (usuarioRepository.existsByUsername(dto.username())) {
+        if (usuarioRepository.existsByUsernameIgnoreCase(dto.username())) {
             throw new IllegalArgumentException(msg.get("user.username.exists", dto.username()));
         }
-        if (usuarioRepository.existsByEmail(dto.email())) {
+        if (usuarioRepository.existsByEmailIgnoreCase(dto.email())) {
             throw new IllegalArgumentException(msg.get("user.email.exists", dto.email()));
         }
         if (personaRepository.findByNumeroDocumento(dto.numeroDocumento()).isPresent()) {
@@ -181,10 +230,10 @@ public class UserCommandService {
     }
 
     private void validateUpdateUser(UsuarioEntity current, UserRequestDto dto) {
-        if (!current.getUsername().equals(dto.username()) && usuarioRepository.existsByUsername(dto.username())) {
+        if (!current.getUsername().equalsIgnoreCase(dto.username()) && usuarioRepository.existsByUsernameIgnoreCase(dto.username())) {
             throw new IllegalArgumentException(msg.get("user.username.exists", dto.username()));
         }
-        if (!current.getEmail().equals(dto.email()) && usuarioRepository.existsByEmail(dto.email())) {
+        if (!current.getEmail().equalsIgnoreCase(dto.email()) && usuarioRepository.existsByEmailIgnoreCase(dto.email())) {
             throw new IllegalArgumentException(msg.get("user.email.exists", dto.email()));
         }
 

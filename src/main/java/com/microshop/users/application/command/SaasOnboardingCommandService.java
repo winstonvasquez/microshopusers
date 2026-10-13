@@ -43,7 +43,9 @@ public class SaasOnboardingCommandService {
         if (companyRepository.findByRuc(request.ruc()).isPresent()) {
             throw new IllegalArgumentException("Ya existe una empresa con RUC: " + request.ruc());
         }
-        if (usuarioRepository.findByUsername(request.adminEmail()).isPresent()) {
+        String adminEmail = request.adminEmail().trim().toLowerCase();
+        if (usuarioRepository.findByUsername(adminEmail).isPresent()
+                || usuarioRepository.existsByEmailIgnoreCase(adminEmail)) {
             throw new IllegalArgumentException("Ya existe un usuario con ese email");
         }
 
@@ -71,9 +73,9 @@ public class SaasOnboardingCommandService {
 
         // 5. Crear usuario admin
         UsuarioEntity usuario = UsuarioEntity.builder()
-                .username(request.adminEmail())
+                .username(adminEmail)
                 .password(passwordEncoder.encode(request.adminPassword()))
-                .email(request.adminEmail())
+                .email(adminEmail)
                 .rol(rolAdmin)
                 .persona(persona)
                 .build();

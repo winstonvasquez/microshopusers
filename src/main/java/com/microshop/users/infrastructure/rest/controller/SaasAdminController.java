@@ -2,6 +2,10 @@ package com.microshop.users.infrastructure.rest.controller;
 
 import com.microshop.users.application.command.LandingContentCommandService;
 import com.microshop.users.application.command.SaasPlanCommandService;
+import com.microshop.users.application.command.SaasSubscriptionCommandService;
+import com.microshop.users.application.dto.SubscriptionAdminDto;
+import com.microshop.users.application.dto.SubscriptionChangeRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.microshop.users.application.dto.LandingSectionUpdateRequest;
 import com.microshop.users.application.dto.SaasPlanAdminDto;
 import com.microshop.users.application.dto.SaasPlanAdminRequest;
@@ -31,6 +35,7 @@ import java.util.List;
 public class SaasAdminController {
 
     private final SaasPlanCommandService saasPlanCommandService;
+    private final SaasSubscriptionCommandService saasSubscriptionCommandService;
     private final SaasQueryService saasQueryService;
     private final LandingContentCommandService landingContentCommandService;
 
@@ -79,5 +84,21 @@ public class SaasAdminController {
         log.info("PUT /saas/admin/landing-content - Sección {}", request.sectionKey());
         landingContentCommandService.updateSection(request.sectionKey(), request.content());
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/companies/{companyId}/subscription")
+    @Operation(summary = "Suscripción (plan y estado) de una empresa")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ResponseEntity<SubscriptionAdminDto> getSubscription(@PathVariable Long companyId) {
+        return ResponseEntity.ok(saasSubscriptionCommandService.get(companyId));
+    }
+
+    @PutMapping("/companies/{companyId}/subscription")
+    @Operation(summary = "Cambiar plan/estado de la empresa (crea la suscripción si no existe) y revoca sus sesiones")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ResponseEntity<SubscriptionAdminDto> changeSubscription(@PathVariable Long companyId,
+            @RequestBody @Valid SubscriptionChangeRequest request) {
+        log.info("PUT /saas/admin/companies/{}/subscription - plan {}", companyId, request.planCode());
+        return ResponseEntity.ok(saasSubscriptionCommandService.change(companyId, request.planCode(), request.status()));
     }
 }

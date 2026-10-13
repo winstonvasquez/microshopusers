@@ -33,7 +33,7 @@ public class ContabilidadClient {
     /**
      * Notifica a contabilidad para generar el asiento de provisión de planilla.
      *
-     * <p>Cálculo de totalIngresos: sueldoBase + bonos + montoHorasExtras + asignacionFamiliar
+     * <p>Cálculo de totalIngresos: sueldoBase + bonos + montoHorasExtras + asignacionFamiliar + gratificacion
      * (igual que {@code Payroll#calculateNeto()} antes de descuentos).</p>
      *
      * @param payroll planilla ya aprobada y persistida
@@ -43,7 +43,8 @@ public class ContabilidadClient {
         BigDecimal totalIngresos = AppUtils.sum(payroll.getSueldoBase(),
                 payroll.getBonos(),
                 payroll.getMontoHorasExtras(),
-                payroll.getAsignacionFamiliar());
+                payroll.getAsignacionFamiliar(),
+                payroll.getGratificacion());
 
         Map<String, Object> body = new LinkedHashMap<>();
         // companyId viaja como UUID sintético new UUID(0, tenantId) — el DTO receptor lo espera

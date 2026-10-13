@@ -35,6 +35,7 @@ public class PasswordResetCommandService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+    private final SesionRevocacionService sesionRevocacionService;
 
     @Value("${app.frontend-url:http://localhost:4200}")
     private String frontendUrl;
@@ -49,7 +50,7 @@ public class PasswordResetCommandService {
      * @param email correo electrónico del usuario
      */
     public void forgotPassword(String email) {
-        usuarioRepository.findByEmail(email.toLowerCase()).ifPresent(user -> {
+        usuarioRepository.findByEmailIgnoreCase(email.trim()).ifPresent(user -> {
             // Eliminar tokens anteriores del usuario para evitar tokens huérfanos
             passwordResetTokenRepository.deleteAllByUserId(user.getId());
 
@@ -109,6 +110,7 @@ public class PasswordResetCommandService {
 
         user.setPassword(passwordEncoder.encode(newPassword));
         usuarioRepository.save(user);
+        sesionRevocacionService.revocarPorUsuario(user.getId());
 
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
