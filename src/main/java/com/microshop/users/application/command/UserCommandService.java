@@ -5,6 +5,7 @@ import com.microshop.users.application.MessageHelper;
 import com.microshop.users.application.dto.UserRequestDto;
 import com.microshop.users.application.dto.UserResponseDto;
 import com.microshop.users.infrastructure.persistence.entity.RolEntity;
+import com.microshop.users.infrastructure.persistence.entity.UserCompanyEntity;
 import com.microshop.users.infrastructure.persistence.entity.UsuarioEntity;
 import com.microshop.users.application.mapper.UserMapper;
 import com.microshop.users.config.security.SecurityContextUtils;
@@ -14,7 +15,10 @@ import com.microshop.users.infrastructure.persistence.repository.UserCompanyRepo
 import com.microshop.users.infrastructure.persistence.repository.UsuarioRepository;
 import com.microshop.users.shared.constants.AppConstants;
 import com.microshop.users.shared.exception.BusinessException;
+import com.microshop.users.shared.exception.ConflictException;
 import com.microshop.users.shared.exception.NotFoundException;
+import java.security.SecureRandom;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -206,6 +210,42 @@ public class UserCommandService {
         usuarioRepository.save(usuario);
         sesionRevocacionService.revocarPorUsuario(usuario.getId());
         log.info("Password changed successfully for user: {}", username);
+    }
+
+    private static final SecureRandom ALEATORIO = new SecureRandom();
+
+    /**
+     * Genera el PIN del punto de venta del usuario autenticado y lo devuelve UNA vez.
+     *
+     * <p>Lo elige el servidor (6 dígitos, distinto del de cualquier otro miembro de sus empresas) en vez del
+     * usuario: con un PIN elegido, un «ese PIN ya está en uso» le revelaría el de un compañero —y el PIN
+     * basta para autorizar descuentos y anulaciones—. Único por empresa porque el desbloqueo del POS
+     * identifica a la persona sólo por el PIN.</p>
+     */
+    @Transactional
+    public String generarPinPos(String username, String currentPassword) {
+        var usuario = usuarioRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("user.not.found"));
+        if (!passwordEncoder.matches(currentPassword, usuario.getPassword())) {
+            throw new BusinessException("La contraseña actual es incorrecta");
+        }
+        List<String> ocupados = userCompanyRepository.findByUsuarioId(usuario.getId()).stream()
+                .filter(UserCompanyEntity::isActive)
+                .flatMap(uc -> usuarioRepository.findByPinHashIsNotNullAndCompanyId(uc.getCompany().getId()).stream())
+                .filter(otro -> !otro.getId().equals(usuario.getId()))
+                .map(UsuarioEntity::getPinHash)
+                .distinct()
+                .toList();
+        for (int intento = 0; intento < 20; intento++) {
+            String pin = String.format("%06d", ALEATORIO.nextInt(1_000_000));
+            if (ocupados.stream().noneMatch(hash -> passwordEncoder.matches(pin, hash))) {
+                usuario.setPinHash(passwordEncoder.encode(pin));
+                usuarioRepository.save(usuario);
+                log.info("PIN del POS regenerado para el usuario {}", usuario.getId());
+                return pin;
+            }
+        }
+        throw new ConflictException("No se pudo generar un PIN libre; vuelva a intentarlo");
     }
 
     private static String normalizarEmail(String email) {

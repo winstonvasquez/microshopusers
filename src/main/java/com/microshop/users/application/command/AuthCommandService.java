@@ -10,6 +10,8 @@ import com.microshop.users.application.dto.LoginRequest;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.SocialLoginRequest;
 import com.microshop.users.application.dto.SupervisorAuthResponse;
+import com.microshop.users.application.dto.PinLoginResponse;
+import com.microshop.users.config.security.SecurityContextUtils;
 import com.microshop.users.application.query.SaasQueryService;
 import com.microshop.users.config.SecurityProperties;
 import com.microshop.users.shared.constants.AppConstants;
@@ -31,6 +33,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -50,6 +54,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -238,46 +245,55 @@ public class AuthCommandService {
                 .collect(Collectors.toList());
     }
 
+    // ponytail: PIN fallidos contados en memoria por instancia; con varias réplicas, llevarlo a Redis/BD.
+    private static final int PIN_MAX_FALLOS = 10;
+    private static final Duration PIN_VENTANA = Duration.ofMinutes(5);
+    private final ConcurrentHashMap<Long, Deque<Instant>> fallosPin = new ConcurrentHashMap<>();
+
     /**
-     * Login por PIN numérico — para POS (cambio de turno rápido).
-     * Compara el PIN hasheado con BCrypt.
+     * Desbloqueo del POS: comprueba que el PIN es el del USUARIO DE LA SESIÓN (bloqueo de pantalla de su caja).
+     *
+     * <p>Antes era anónimo, buscaba entre los usuarios de todas las empresas y devolvía un JWT completo: adivinar
+     * un PIN daba la cuenta (y {@code set-pin}, también anónimo, permitía fijarlo). Buscar entre los miembros de
+     * la empresa tampoco basta: cualquier compañero con sesión lo usaría de oráculo del PIN de un supervisor, que
+     * autoriza descuentos y anulaciones. Por eso sólo responde por el PIN propio y no emite token.</p>
      */
-    public LoginResponse pinLogin(String pin, Long companyId) {
-        // Candidatos con PIN configurado. Si se especifica empresa, acotamos a los
-        // miembros ACTIVOS de ESA empresa (query companyId != null) — evita escanear
-        // (y BCrypt-comparar) usuarios con PIN de TODOS los tenants. Sin empresa
-        // (caso raro/legacy) mantenemos el escaneo global previo.
-        List<UsuarioEntity> candidatos = companyId != null
-                ? usuarioRepository.findByPinHashIsNotNullAndCompanyId(companyId)
-                : usuarioRepository.findByPinHashIsNotNull();
+    public PinLoginResponse pinLogin(String pin) {
+        Long userId = SecurityContextUtils.currentUserId();
+        Long companyId = SecurityContextUtils.currentCompanyId();
+        if (userId == null || companyId == null) {
+            throw new AccessDeniedException("El desbloqueo por PIN requiere la sesión de la estación");
+        }
+        if (!reservarIntentoDePin(userId)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Demasiados PIN incorrectos. Espere unos minutos antes de volver a intentarlo.");
+        }
+        UsuarioEntity u = usuarioRepository.findById(userId).orElse(null);
+        if (u != null && u.isActivo() && u.getPinHash() != null && passwordEncoder.matches(pin, u.getPinHash())) {
+            fallosPin.remove(userId);
+            return new PinLoginResponse(u.getUsername(), u.getId(), companyId);
+        }
+        log.warn("PIN de desbloqueo del POS rechazado: usuario={} empresa={}", userId, companyId);
+        throw new IllegalArgumentException(msg.get("auth.credentials.invalid"));
+    }
 
-        UsuarioEntity user = null;
-        for (UsuarioEntity u : candidatos) {
-            if (passwordEncoder.matches(pin, u.getPinHash())) {
-                user = u;
-                break;
+    /**
+     * Apunta el intento ANTES de comparar (atómico por usuario): con chequeo y registro separados, K peticiones
+     * paralelas pasaban todas. False si la ventana ya se agotó.
+     */
+    private boolean reservarIntentoDePin(Long userId) {
+        Deque<Instant> intentos = fallosPin.computeIfAbsent(userId, k -> new ArrayDeque<>());
+        synchronized (intentos) {
+            Instant limite = Instant.now().minus(PIN_VENTANA);
+            while (!intentos.isEmpty() && intentos.peekFirst().isBefore(limite)) {
+                intentos.pollFirst();
             }
+            if (intentos.size() >= PIN_MAX_FALLOS) {
+                return false;
+            }
+            intentos.addLast(Instant.now());
+            return true;
         }
-        if (user == null) {
-            throw new IllegalArgumentException(msg.get("auth.credentials.invalid"));
-        }
-
-        requireActivo(user);
-        var userCompanies = getUserCompanies(user.getId());
-        var resolvedCompanyId = determineCompanyId(companyId, userCompanies);
-        if (companyId == null) {
-            // Sin empresa solicitada: se resolvió un default de la lista del usuario,
-            // igual que antes. Con empresa solicitada, la query ya garantizó membresía
-            // activa — revalidar aquí sería redundante.
-            validateCompanyMembership(resolvedCompanyId, userCompanies);
-        }
-
-        var jwtToken = generateJwtToken(user, resolvedCompanyId);
-        createSession(user, jwtToken, resolvedCompanyId);
-        List<String> enabledModules = saasQueryService.getEnabledModuleCodes(resolvedCompanyId);
-
-        return new LoginResponse(jwtToken, user.getUsername(), user.getId(),
-                resolvedCompanyId, getAvailableCompanyIds(userCompanies), enabledModules);
     }
 
     /** Roles habilitados para autorizar operaciones sensibles del POS (descuentos, etc.). */
@@ -295,49 +311,19 @@ public class AuthCommandService {
      */
     @Transactional(readOnly = true)
     public SupervisorAuthResponse verifySupervisorPin(String pin, Long companyId) {
-        if (pin == null || pin.isBlank()) {
+        if (pin == null || pin.isBlank() || companyId == null) {
             return new SupervisorAuthResponse(false, null, null, null);
         }
-
-        // Solo candidatos con PIN y rol autorizador: el filtro lo hace la BD, no un findAll().
-        UsuarioEntity supervisor = null;
-        for (UsuarioEntity u : usuarioRepository.findByPinHashIsNotNullAndRol_NombreIn(ROLES_AUTORIZADORES)) {
-            // Un supervisor desactivado no autoriza operaciones POS (mismo criterio que requireActivo).
-            if (u.isActivo() && passwordEncoder.matches(pin, u.getPinHash())) {
-                supervisor = u;
-                break;
+        // Sólo miembros activos de ESTA empresa. Antes se tomaba el primer supervisor con ese PIN de
+        // cualquier empresa y después se miraba la membresía: un PIN repetido en otra empresa denegaba
+        // al supervisor legítimo.
+        for (UsuarioEntity u : usuarioRepository.findByPinHashIsNotNullAndCompanyId(companyId)) {
+            String rol = u.getRol() != null ? u.getRol().getNombre().toUpperCase() : "";
+            if (u.isActivo() && ROLES_AUTORIZADORES.contains(rol) && passwordEncoder.matches(pin, u.getPinHash())) {
+                return new SupervisorAuthResponse(true, u.getId(), u.getUsername(), rol);
             }
         }
-
-        if (supervisor == null) {
-            return new SupervisorAuthResponse(false, null, null, null);
-        }
-
-        // El rol ya está garantizado por la query; se lee solo para devolverlo.
-        String rol = supervisor.getRol().getNombre().toUpperCase();
-
-        if (companyId != null) {
-            boolean perteneceEmpresa = getUserCompanies(supervisor.getId()).stream()
-                    .anyMatch(uc -> uc.getCompany().getId().equals(companyId) && uc.isActive());
-            if (!perteneceEmpresa) {
-                log.warn("Supervisor {} no pertenece a la empresa {} — autorización denegada",
-                        supervisor.getId(), companyId);
-                return new SupervisorAuthResponse(false, null, null, null);
-            }
-        }
-
-        return new SupervisorAuthResponse(true, supervisor.getId(), supervisor.getUsername(), rol);
-    }
-
-    /**
-     * Establece un PIN numérico para login rápido en POS.
-     */
-    public void setPin(Long userId, String pin) {
-        UsuarioEntity user = usuarioRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
-        user.setPinHash(passwordEncoder.encode(pin));
-        usuarioRepository.save(user);
-        log.info("PIN establecido para usuario {}", userId);
+        return new SupervisorAuthResponse(false, null, null, null);
     }
 
     public void sendOtp(String email) {

@@ -48,11 +48,6 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
 
     Optional<UsuarioEntity> findByPinHash(String pinHash);
 
-    /**
-     * Candidatos para login por PIN: solo usuarios que tienen un PIN configurado.
-     * Evita iterar (y BCrypt-comparar) toda la tabla de usuarios.
-     */
-    java.util.List<UsuarioEntity> findByPinHashIsNotNull();
 
     /**
      * Candidatos para login por PIN acotados a UNA empresa: usuarios con PIN configurado
@@ -64,13 +59,6 @@ public interface UsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
            "JOIN UserCompanyEntity uc ON uc.usuario.id = u.id " +
            "WHERE u.pinHash IS NOT NULL AND uc.company.id = :companyId AND uc.isActive = true")
     java.util.List<UsuarioEntity> findByPinHashIsNotNullAndCompanyId(@Param("companyId") Long companyId);
-
-    /**
-     * Candidatos para autorización de supervisor: usuarios con PIN configurado
-     * cuyo rol está entre los autorizadores. Reduce el set a un puñado antes del
-     * BCrypt-match (los roles se siembran en mayúsculas: ADMIN/GERENTE/SUPERADMIN).
-     */
-    java.util.List<UsuarioEntity> findByPinHashIsNotNullAndRol_NombreIn(java.util.Collection<String> rolNombres);
 
     /**
      * Listado de usuarios acotado a UNA empresa (via user_company), paginado.

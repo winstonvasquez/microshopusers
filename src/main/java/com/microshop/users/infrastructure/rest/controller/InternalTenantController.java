@@ -64,6 +64,24 @@ public class InternalTenantController {
     private final CompanyRepository companyRepository;
     private final SesionRevocacionService sesionRevocacionService;
     private final com.microshop.users.application.query.UserCompanyQueryService userCompanyQueryService;
+    private final com.microshop.users.application.command.AuthCommandService authCommandService;
+
+    public record VerificacionPinRequest(String pin, Long companyId) {}
+
+    /**
+     * Verifica el PIN de un supervisor (ADMIN/GERENTE/SUPERADMIN activo y miembro de ESA empresa) para que el POS
+     * autorice en el SERVIDOR un descuento sobre el tope o una anulación (POSP-1). Sustituye al público
+     * {@code /auth/verify-supervisor-pin}, que el navegador llamaba sin sesión y con la empresa opcional: un
+     * oráculo de PIN de 4-6 dígitos abierto a internet. La empresa es obligatoria.
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/supervisor-pin/verificar")
+    public ResponseEntity<com.microshop.users.application.dto.SupervisorAuthResponse> verificarPinSupervisor(
+            @org.springframework.web.bind.annotation.RequestBody VerificacionPinRequest body) {
+        if (body == null || body.companyId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(authCommandService.verifySupervisorPin(body.pin(), body.companyId()));
+    }
 
     /**
      * Usuarios de una empresa con rol de administración, para que otro servicio pueda dirigirle una

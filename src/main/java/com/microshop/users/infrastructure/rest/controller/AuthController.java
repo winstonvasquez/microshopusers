@@ -16,9 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.microshop.users.application.dto.CheckEmailResponse;
+import com.microshop.users.application.dto.PinLoginRequest;
+import com.microshop.users.application.dto.PinLoginResponse;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.SocialLoginRequest;
-import com.microshop.users.application.dto.SupervisorAuthResponse;
 import com.microshop.users.application.dto.VerifyOtpRequest;
 
 
@@ -65,27 +66,16 @@ public class AuthController {
     }
 
     @PostMapping("/pin-login")
-    @Operation(summary = "Login with numeric PIN (POS quick login)")
-    public ResponseEntity<LoginResponse> pinLogin(
-            @RequestParam String pin,
-            @RequestParam(required = false) Long companyId) {
-        return ResponseEntity.ok(authCommandService.pinLogin(pin, companyId));
+    @Operation(summary = "Desbloquear el POS con el PIN de un miembro de la empresa de la sesión (no emite token)")
+    public ResponseEntity<PinLoginResponse> pinLogin(@Valid @RequestBody PinLoginRequest request) {
+        return ResponseEntity.ok(authCommandService.pinLogin(request.pin()));
     }
 
-    @PostMapping("/users/{userId}/set-pin")
-    @Operation(summary = "Set numeric PIN for POS quick login")
-    public ResponseEntity<Void> setPin(@PathVariable Long userId, @RequestParam String pin) {
-        authCommandService.setPin(userId, pin);
-        return ResponseEntity.ok().build();
-    }
+    // El antiguo POST /users/{userId}/set-pin era anónimo (bajo /auth/**) y fijaba el PIN de CUALQUIER usuario;
+    // con pin-login, eso era tomar la cuenta. El PIN se genera ahora con PUT /api/users/me/pin, reautenticado.
 
-    @PostMapping("/verify-supervisor-pin")
-    @Operation(summary = "Verifica el PIN de un supervisor para autorizar operaciones sensibles del POS")
-    public ResponseEntity<SupervisorAuthResponse> verifySupervisorPin(
-            @RequestParam String pin,
-            @RequestParam(required = false) Long companyId) {
-        return ResponseEntity.ok(authCommandService.verifySupervisorPin(pin, companyId));
-    }
+    // POSP-1: la verificación del PIN de supervisor ya no es pública (era un oráculo sin sesión y con la empresa
+    // opcional). La hace ventas en el servidor vía POST /api/internal/supervisor-pin/verificar (s2s).
 
     /**
      * Inicia el flujo de recuperación de contraseña.

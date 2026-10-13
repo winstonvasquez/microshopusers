@@ -23,7 +23,12 @@ public class LocaleConfig {
     @Bean
     public MessageSource messageSource() {
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
-        messageSource.setBasename("classpath:i18n/messages");
+        // Dos juegos de mensajes (i18n/ y la raíz de resources): sólo se leía el primero, así que 13 claves en
+        // uso (p. ej. auth.credentials.invalid) lanzaban NoSuchMessageException y un PIN o login erróneo daba 500.
+        messageSource.setBasenames("classpath:i18n/messages", "classpath:messages");
+        // Otras 35 claves en uso (sobre todo de RRHH) no están en ningún archivo: mejor el código como texto y el
+        // 4xx correcto que un 500. Pendiente redactarlas (ver PENDIENTES).
+        messageSource.setUseCodeAsDefaultMessage(true);
         messageSource.setDefaultEncoding(StandardCharsets.UTF_8.name());
         messageSource.setCacheSeconds(3600); // Reload messages every hour
         return messageSource;

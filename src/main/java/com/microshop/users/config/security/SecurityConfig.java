@@ -130,6 +130,8 @@ public class SecurityConfig {
                                                 // GLOBAL de la plataforma, no de un tenant — solo SUPERADMIN. Antes del
                                                 // permitAll de /users/api/saas/** (primer match gana).
                                                 .requestMatchers("/users/api/saas/admin/**").hasRole(AppConstants.Seguridad.SUPERADMIN)
+                                                // Desbloqueo del POS: exige la sesión de la estación (ver AuthCommandService.pinLogin).
+                                                .requestMatchers(HttpMethod.POST, "/users/api/auth/pin-login").authenticated()
                                                 .requestMatchers(
                                                                 "/users/api/auth/**",
                                                                 "/users/api/saas/**",

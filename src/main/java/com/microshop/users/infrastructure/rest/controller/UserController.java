@@ -6,6 +6,7 @@ import com.microshop.users.application.query.UserCompanyQueryService;
 import com.microshop.users.application.query.UserQueryService;
 import com.microshop.users.application.dto.ChangePasswordRequest;
 import com.microshop.users.application.dto.ChangeRoleRequest;
+import com.microshop.users.application.dto.GenerarPinRequest;
 import com.microshop.users.application.dto.LoginResponse;
 import com.microshop.users.application.dto.SwitchCompanyRequest;
 import com.microshop.users.application.dto.UserExportRowDto;
@@ -263,6 +264,16 @@ public class UserController {
         log.info("PUT /api/users/me/password - Cambiando contraseña para: {}", userDetails.getUsername());
         userCommandService.changePassword(userDetails.getUsername(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/me/pin")
+    @Operation(summary = "Generar el PIN del punto de venta del usuario autenticado",
+               description = "Pide la contraseña actual; el servidor elige un PIN de 6 dígitos único en sus empresas y lo devuelve una sola vez.")
+    public ResponseEntity<Map<String, String>> generarPinPos(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody @Valid GenerarPinRequest request) {
+        return ResponseEntity.ok(Map.of("pin",
+                userCommandService.generarPinPos(userDetails.getUsername(), request.currentPassword())));
     }
 
     @GetMapping("/me/companies")
